@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Navbar from '@/components/navbar/Navbar';
 import ExpenseTable from '@/components/expense-table/ExpenseTable';
 import ExpenseForm from '@/components/expense-form/ExpenseForm';
+import TransactionCalendar from '@/components/transaction-calendar/TransactionCalendar';
 import { getTransactions, getTransactionSummary } from '@/lib/transactions';
 import { getCurrentUser } from '@/lib/auth';
 import { generateFinancialInsights } from '@/lib/ai';
@@ -206,6 +207,9 @@ const DashboardContent = () => {
                 )}
               </div>
             </div>
+
+            {/* Full-width Transaction Calendar */}
+            <TransactionCalendar transactions={transactions} />
 
             <div className='bg-white dark:bg-white/5 shadow-xl dark:shadow-2xl dark:backdrop-blur-xl border border-neutral-100 dark:border-white/10 p-8 rounded-3xl transition-all'>
               <h3 className='text-xl font-bold mb-6 flex items-center gap-2'>
