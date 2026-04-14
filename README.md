@@ -1,36 +1,139 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 💰 FIMS — Financial Insight Management System
 
-## Getting Started
+A modern, AI-powered personal finance tracker built with **Next.js**, **Supabase**, and **Groq AI**. Track your income and expenses, visualize spending patterns, attach receipt photos, and get personalized financial insights — all in a beautiful, fully responsive Light/Dark mode interface.
 
-First, run the development server:
+---
+
+## ✨ Features
+
+### 📊 Dashboard
+
+- **Summary Cards** — Total Balance, Income, and Expenses with Philippine Peso (₱) formatting and comma separators
+- **Spending Distribution Chart** — Doughnut chart showing expense breakdown by category (income excluded)
+- **Transaction Calendar** — Full monthly calendar with clickable dates showing daily transaction summaries
+- **Recent Transactions Table** — Searchable, paginated table with full CRUD support
+- **Smart Analysis** — AI-generated insights powered by Groq (llama-3.3-70b-versatile)
+- **Quick Tips** — Personalized AI tips based on your real spending data
+
+### 💳 Transactions
+
+- Add income or expenses via a sleek **modal form** (triggered from anywhere in the app)
+- **Attach receipt photos** — uploaded securely to Supabase Storage (private bucket)
+- **Edit** any transaction inline from the detail modal
+- **Delete** with a two-step confirmation guard
+- Search and filter transactions by description, category, or amount
+- 5 transactions per page with Previous/Next pagination
+
+### 🗓️ Transaction Calendar
+
+- Browse any month with Previous/Next navigation
+- Color-coded dots per day: 🟢 income · 🔴 expense
+- Click any day to reveal all transactions with amounts and categories
+- Today is highlighted automatically
+
+### 🌗 Light / Dark Mode
+
+- Global theme toggle (Sun/Moon) in the navbar
+- All components fully support both themes
+- Persists across sessions via `next-themes`
+
+### 🔒 Security
+
+- Supabase Row Level Security (RLS) — users can only access their own data
+- Receipt images stored in a **private** Supabase Storage bucket with signed URLs (1-hour expiry)
+- AI insights processed server-side — API key never exposed to the client
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer        | Technology                           |
+| ------------ | ------------------------------------ |
+| Framework    | Next.js 15 (App Router)              |
+| Styling      | Tailwind CSS v4                      |
+| Database     | Supabase (PostgreSQL)                |
+| Auth         | Supabase Auth                        |
+| File Storage | Supabase Storage                     |
+| AI Engine    | Groq Cloud (llama-3.3-70b-versatile) |
+| Charts       | Chart.js + react-chartjs-2           |
+| Theming      | next-themes                          |
+| Icons        | react-icons (Feather)                |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone and Install
+
+```bash
+git clone https://github.com/your-username/expense-tracker.git
+cd expense-tracker
+npm install
+```
+
+### 2. Set Up Environment Variables
+
+Create a `.env.local` file in the root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+GROQ_API_KEY=your_groq_api_key
+```
+
+### 3. Set Up the Database
+
+Run the SQL in `src/lib/schema.sql` in your Supabase **SQL Editor**.
+
+### 4. Set Up Receipt Storage
+
+1. Go to Supabase → **Storage** → **New Bucket**
+2. Name it `receipts`, set to **Private**
+3. Run the storage RLS policies from the schema comments
+
+### 5. Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📁 Project Structure
 
-## Learn More
+```
+src/
+├── app/
+│   ├── api/insights/       # Server-side Groq AI route
+│   ├── dashboard/          # Main dashboard page
+│   ├── login/              # Login page
+│   ├── register/           # Registration page
+│   └── globals.css         # Global styles + Tailwind config
+├── components/
+│   ├── expense-form/       # Add Transaction modal
+│   ├── expense-table/      # Transaction table with search & pagination
+│   ├── navbar/             # Navigation + theme toggle
+│   ├── transaction-calendar/ # Monthly transaction calendar
+│   └── theme-provider.jsx  # next-themes provider
+└── lib/
+    ├── ai.js               # AI insights client logic + caching
+    ├── auth.js             # Supabase auth helpers
+    ├── schema.sql          # Database schema + RLS policies
+    ├── supabaseClient.js   # Supabase client instance
+    └── transactions.js     # Transaction CRUD + Storage helpers
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔑 Getting API Keys
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Supabase**: [https://supabase.com](https://supabase.com) — Free tier available
+- **Groq**: [https://console.groq.com](https://console.groq.com) — Free tier with generous rate limits
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📄 License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT — free to use and modify.
