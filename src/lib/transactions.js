@@ -34,6 +34,34 @@ export const deleteTransaction = async (id) => {
   return { error };
 };
 
+export const uploadReceipt = async (userId, file) => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+  const { data, error } = await supabase.storage
+    .from('receipts')
+    .upload(fileName, file, { upsert: false });
+
+  if (error) return { path: null, error };
+  return { path: data.path, error: null };
+};
+
+export const getReceiptUrl = async (path) => {
+  const { data, error } = await supabase.storage
+    .from('receipts')
+    .createSignedUrl(path, 60 * 60); // 1 hour expiry
+
+  if (error) return { url: null, error };
+  return { url: data.signedUrl, error: null };
+};
+
+export const deleteReceipt = async (path) => {
+  const { error } = await supabase.storage
+    .from('receipts')
+    .remove([path]);
+  return { error };
+};
+
 export const getTransactionSummary = async (userId) => {
   const { data, error } = await supabase
     .from('transactions')

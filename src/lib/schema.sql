@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     category TEXT NOT NULL,
     description TEXT,
     date DATE DEFAULT CURRENT_DATE NOT NULL,
+    receipt_url TEXT, -- Path to uploaded receipt image in Supabase Storage
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

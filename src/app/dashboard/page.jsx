@@ -45,7 +45,7 @@ const DashboardContent = () => {
   const [user, setUser] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
-  const [aiData, setAiData] = useState({ insights: [], prediction: '' });
+  const [aiData, setAiData] = useState({ insights: [], prediction: '', tips: [] });
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
@@ -249,11 +249,18 @@ const DashboardContent = () => {
                 <FiPieChart className='text-neutral-400' />
                 Quick Tips
               </h3>
-              <ul className='text-sm text-neutral-600 dark:text-neutral-400 space-y-3 list-disc pl-4'>
-                <li>Automate your savings for steady growth.</li>
-                <li>Review your subscriptions monthly.</li>
-                <li>Keep an emergency fund for 3-6 months.</li>
-              </ul>
+              {aiData?.tips?.length > 0 ? (
+                <ul className='text-sm text-neutral-600 dark:text-neutral-400 space-y-3'>
+                  {aiData.tips.map((tip, i) => (
+                    <li key={i} className='flex items-start gap-2'>
+                      <span className='mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0'></span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className='text-sm text-neutral-500 italic'>Generating personalized tips...</p>
+              )}
             </div>
           </div>
         </div>

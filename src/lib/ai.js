@@ -9,14 +9,15 @@ import { supabase } from './supabaseClient';
 export const generateFinancialInsights = async (transactions, summary, userId) => {
   const fallback = { 
     insights: getDefaultInsights(), 
-    prediction: "We're currently using a default forecast while your AI syncs." 
+    prediction: "We're currently using a default forecast while your AI syncs.",
+    tips: getDefaultTips(),
   };
 
   try {
     // 1. Smart Local Caching based on financial state
     // We create a "fingerprint" of your money. If your money changes, the AI generates new insights!
     const stateFingerprint = `${transactions.length}-${summary.balance}`;
-    const cacheKey = `fims_ai_${userId}_${stateFingerprint}`;
+    const cacheKey = `fims_ai_v2_${userId}_${stateFingerprint}`;
 
     if (typeof window !== 'undefined') {
       const cached = sessionStorage.getItem(cacheKey);
@@ -59,4 +60,10 @@ export const getDefaultInsights = () => [
   "Tip: Setting a monthly budget for 'Food' can help you save up to 10% more.",
   "Positive trend! You've successfully added your recent transactions.",
   "Consider setting aside 20% of your net balance for future investments."
+];
+
+export const getDefaultTips = () => [
+  'Track your daily expenses to spot patterns over time.',
+  'Try to save at least 20% of your monthly income.',
+  'Review your subscriptions monthly to avoid unnecessary spending.',
 ];

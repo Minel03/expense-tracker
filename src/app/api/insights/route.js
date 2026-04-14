@@ -20,29 +20,32 @@ export async function POST(req) {
     const groq = new Groq({ apiKey: API_KEY });
 
     const prompt = `
-      You are an expert financial advisor for a system called FIMS.
+      You are an expert financial advisor for a system called FIMS (Financial Insight Management System).
+      The user is from the Philippines and uses Philippine Peso (₱).
       Analyze the following financial data and provide:
-      1. 3-4 concise, actionable insights.
+      1. 3-4 concise, actionable insights about their spending behavior.
       2. A short prediction for next month's balance (1 sentence).
+      3. Exactly 3 personalized quick tips based on their actual spending categories and amounts.
       
       TRANSACTION SUMMARY:
-      - Total Income: $${summary.income}
-      - Total Expenses: $${summary.expense}
-      - Net Balance: $${summary.balance}
+      - Total Income: ₱${summary.income}
+      - Total Expenses: ₱${summary.expense}
+      - Net Balance: ₱${summary.balance}
       
       RECENT TRANSACTIONS:
       ${transactions
         .slice(0, 10)
         .map(
           (t) =>
-            `- ${t.date}: ${t.type} of $${t.amount} for ${t.category} (${t.description})`,
+            `- ${t.date}: ${t.type} of ₱${t.amount} for ${t.category} (${t.description || 'no description'})`,
         )
         .join('\n')}
       
-      IMPORTANT: You must return the result as a valid JSON object matching this exact structure:
+      IMPORTANT: Return valid JSON matching this exact structure:
       {
         "insights": ["Insight 1", "Insight 2", "Insight 3"],
-        "prediction": "Your prediction sentence here."
+        "prediction": "Your prediction sentence here.",
+        "tips": ["Personalized tip 1", "Personalized tip 2", "Personalized tip 3"]
       }
     `;
 
@@ -71,6 +74,11 @@ export async function POST(req) {
       {
         insights: [],
         prediction: 'AI is temporarily unavailable. Check your Groq API key.',
+        tips: [
+          'Track your daily expenses to spot patterns over time.',
+          'Try to save at least 20% of your monthly income.',
+          'Review your subscriptions regularly to avoid unnecessary spending.',
+        ],
         error: error.message,
         isQuotaError: error.status === 429,
       },
