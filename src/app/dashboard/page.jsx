@@ -6,8 +6,15 @@ import ExpenseForm from '@/components/expense-form/ExpenseForm';
 import TransactionCalendar from '@/components/transaction-calendar/TransactionCalendar';
 import BudgetTracker from '@/components/budget/BudgetTracker';
 import AIChat from '@/components/chat/AIChat';
-import { getTransactions, getTransactionSummary, getBudgets } from '@/lib/transactions';
+import {
+  getTransactions,
+  getTransactionSummary,
+  getBudgets,
+  getSubscriptions,
+  processSubscriptions,
+} from '@/lib/transactions';
 import { getCurrentUser } from '@/lib/auth';
+import SubscriptionManager from '@/components/budget/SubscriptionManager';
 import { generateFinancialInsights } from '@/lib/ai';
 import { useTheme } from 'next-themes';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -48,8 +55,13 @@ const DashboardContent = () => {
   const [user, setUser] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [budgets, setBudgets] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
-  const [aiData, setAiData] = useState({ insights: [], prediction: '', tips: [] });
+  const [aiData, setAiData] = useState({
+    insights: [],
+    prediction: '',
+    tips: [],
+  });
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
 
@@ -62,14 +74,19 @@ const DashboardContent = () => {
     if (!currentUser) return;
     setUser(currentUser);
 
+    // Auto-Biller: check and fire background deductions first
+    await processSubscriptions(currentUser.id);
+
     const { data: transData } = await getTransactions(currentUser.id);
     const { data: summData } = await getTransactionSummary(currentUser.id);
     const monthStr = new Date().toISOString().slice(0, 7);
     const { data: budgetsData } = await getBudgets(currentUser.id, monthStr);
+    const { data: subsData } = await getSubscriptions(currentUser.id);
 
     setTransactions(transData || []);
     setSummary(summData || { income: 0, expense: 0, balance: 0 });
     setBudgets(budgetsData || []);
+    setSubscriptions(subsData || []);
 
     if (transData && transData.length > 0) {
       const data = await generateFinancialInsights(
@@ -155,7 +172,11 @@ const DashboardContent = () => {
               Total Balance
             </p>
             <h2 className='text-4xl font-mono font-black'>
-              ₱{summary.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱
+              {summary.balance.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </h2>
           </div>
 
@@ -167,7 +188,11 @@ const DashboardContent = () => {
               Total Income
             </p>
             <h2 className='text-4xl font-mono font-black text-emerald-600 dark:text-emerald-400'>
-              +₱{summary.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              +₱
+              {summary.income.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </h2>
           </div>
 
@@ -179,7 +204,11 @@ const DashboardContent = () => {
               Total Expenses
             </p>
             <h2 className='text-4xl font-mono font-black text-rose-600 dark:text-rose-400'>
-              -₱{summary.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              -₱
+              {summary.expense.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </h2>
           </div>
         </div>
@@ -225,17 +254,24 @@ const DashboardContent = () => {
               <ExpenseTable
                 transactions={transactions}
                 onUpdate={fetchData}
+                userId={user?.id}
               />
             </div>
           </div>
 
           {/* Analysis Side Panel */}
           <div className='space-y-8'>
-            <BudgetTracker 
-              budgets={budgets} 
-              transactions={transactions} 
+            <BudgetTracker
+              budgets={budgets}
+              transactions={transactions}
               userId={user?.id}
               month={new Date().toISOString().slice(0, 7)}
+              onUpdate={fetchData}
+            />
+            
+            <SubscriptionManager 
+              subscriptions={subscriptions}
+              userId={user?.id}
               onUpdate={fetchData}
             />
 
@@ -270,14 +306,18 @@ const DashboardContent = () => {
               {aiData?.tips?.length > 0 ? (
                 <ul className='text-sm text-neutral-600 dark:text-neutral-400 space-y-3'>
                   {aiData.tips.map((tip, i) => (
-                    <li key={i} className='flex items-start gap-2'>
-                      <span className='mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0'></span>
+                    <li
+                      key={i}
+                      className='flex items-start gap-2'>
+                      <span className='mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0'></span>
                       <span>{tip}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className='text-sm text-neutral-500 italic'>Generating personalized tips...</p>
+                <p className='text-sm text-neutral-500 italic'>
+                  Generating personalized tips...
+                </p>
               )}
             </div>
           </div>
@@ -294,9 +334,9 @@ const DashboardContent = () => {
       )}
 
       {/* FinAI Chat Widget */}
-      <AIChat 
-        transactions={transactions} 
-        summary={summary} 
+      <AIChat
+        transactions={transactions}
+        summary={summary}
         userName={user?.user_metadata?.full_name?.split(' ')[0] || 'User'}
         userId={user?.id}
         onUpdate={fetchData}

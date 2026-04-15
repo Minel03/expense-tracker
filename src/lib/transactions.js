@@ -5,7 +5,8 @@ export const getTransactions = async (userId) => {
     .from('transactions')
     .select('*')
     .eq('user_id', userId)
-    .order('date', { ascending: false });
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
   return { data, error };
 };
 
@@ -13,6 +14,14 @@ export const addTransaction = async (transaction) => {
   const { data, error } = await supabase
     .from('transactions')
     .insert([transaction])
+    .select();
+  return { data, error };
+};
+
+export const bulkAddTransactions = async (transactions) => {
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert(transactions)
     .select();
   return { data, error };
 };
@@ -111,4 +120,57 @@ export const deleteBudget = async (id) => {
     .delete()
     .eq('id', id);
   return { error };
+};
+
+// --- Subscription Functions ---
+
+export const getSubscriptions = async (userId) => {
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+  return { data, error };
+};
+
+export const processSubscriptions = async (userId) => {
+  // 1. Fetch active subs
+  const { data: subs, error: subError } = await getSubscriptions(userId);
+  if (subError || !subs) return;
+
+  const today = new Date();
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const currentDay = today.getDate();
+
+  const transactionsToInsert = [];
+  const subsToUpdate = [];
+
+  for (const sub of subs) {
+    if (sub.last_processed_month !== currentMonth && currentDay >= sub.billing_day) {
+      // Create a new transaction explicitly marked as recurring
+      transactionsToInsert.push({
+        user_id: userId,
+        type: 'expense',
+        amount: sub.amount,
+        category: sub.category,
+        description: sub.name,
+        date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(sub.billing_day).padStart(2, '0')}`,
+        is_recurring: true
+      });
+
+      subsToUpdate.push({
+        id: sub.id,
+        last_processed_month: currentMonth
+      });
+    }
+  }
+
+  if (transactionsToInsert.length > 0) {
+    // Inject the simulated transaction
+    await bulkAddTransactions(transactionsToInsert);
+
+    // Patch the subscriptions so they aren't Double-Processed
+    for (const subUpdate of subsToUpdate) {
+      await supabase.from('subscriptions').update({ last_processed_month: subUpdate.last_processed_month }).eq('id', subUpdate.id);
+    }
+  }
 };

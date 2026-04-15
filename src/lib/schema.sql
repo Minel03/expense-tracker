@@ -101,3 +101,39 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ─────────────────────────────────────────────────────────────
+-- Smart Subscription Automation (run these in Supabase SQL Editor)
+-- ─────────────────────────────────────────────────────────────
+
+-- 1. Add is_recurring flag to existing transactions table
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE;
+
+-- 2. Create subscriptions table
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+    name TEXT NOT NULL,                        -- e.g. "Netflix", "Spotify"
+    amount DECIMAL(12, 2) NOT NULL,
+    billing_day INTEGER CHECK (billing_day BETWEEN 1 AND 31) NOT NULL,
+    category TEXT NOT NULL DEFAULT 'Entertainment',
+    last_processed_month VARCHAR(7) DEFAULT '',-- e.g. '2026-04', prevents double-billing
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Enable RLS on subscriptions
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- 4. RLS Policies for subscriptions
+CREATE POLICY "Users can view their own subscriptions" ON subscriptions
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own subscriptions" ON subscriptions
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own subscriptions" ON subscriptions
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own subscriptions" ON subscriptions
+    FOR DELETE USING (auth.uid() = user_id);
