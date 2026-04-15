@@ -17,6 +17,10 @@ import { ThemeProvider } from "@/components/theme-provider";
 export const metadata = {
   title: "FIMS - Financial Insight System",
   description: "Manage your expenses and get smart financial summaries",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({ children }) {

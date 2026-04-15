@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiTarget, FiEdit2, FiSave, FiAlertTriangle, FiTrash2 } from 'react-icons/fi';
+import { FiTarget, FiEdit2, FiSave, FiAlertTriangle, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import { upsertBudget, deleteBudget } from '@/lib/transactions';
 import { toast } from 'react-hot-toast';
 
@@ -57,16 +57,15 @@ export default function BudgetTracker({ budgets, transactions, userId, month, on
 
   return (
     <div className='bg-white dark:bg-white/5 shadow-xl dark:shadow-2xl dark:backdrop-blur-xl border border-neutral-100 dark:border-white/10 p-8 rounded-3xl relative overflow-hidden transition-all'>
-      <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center mb-6">
+      <div className='flex justify-between items-center mb-6'>
         <h3 className='text-xl font-bold flex items-center gap-2'>
           <FiTarget className='text-neutral-400' />
           Budget Goals
         </h3>
-        <button 
-          onClick={() => setIsEditing(!isEditing)} 
-          className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
-        >
-          {isEditing ? 'Cancel' : <><FiEdit2 /> Set Budget</>}
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          className='p-2 bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-500/20 transition'>
+          {isEditing ? <FiX /> : <FiPlus />}
         </button>
       </div>
 

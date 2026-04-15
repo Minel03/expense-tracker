@@ -62,9 +62,11 @@ const Navbar = () => {
           <Link
             href='/dashboard'
             className='flex items-center gap-2 group'>
-            <div className='w-10 h-10 bg-gradient-to-tr from-violet-600 to-cyan-400 rounded-xl flex items-center justify-center transform group-hover:rotate-12 transition-transform'>
-              <span className='text-white font-black text-xl'>F</span>
-            </div>
+            <img
+              src="/icon.png"
+              alt="FIMS Logo"
+              className='w-10 h-10 rounded-xl transform group-hover:rotate-12 transition-transform object-cover shadow-lg shadow-violet-500/20'
+            />
             <span className='text-xl font-bold bg-gradient-to-r from-violet-600 to-neutral-800 dark:from-white dark:to-neutral-500 bg-clip-text text-transparent hidden sm:block'>
               FIMS
             </span>
