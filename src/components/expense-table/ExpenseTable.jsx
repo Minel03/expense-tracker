@@ -5,9 +5,11 @@ import { toast } from 'react-hot-toast';
 import {
   FiTrash2, FiTrendingUp, FiTrendingDown, FiSearch,
   FiChevronLeft, FiChevronRight, FiX, FiPaperclip,
-  FiCalendar, FiTag, FiAlignLeft, FiExternalLink,
-  FiEdit2, FiSave
+  FiEdit2, FiSave, FiDownload, FiAlignLeft, FiTag, FiCalendar, FiExternalLink
 } from 'react-icons/fi';
+import Papa from 'papaparse';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const categories = [
   'Salary', 'Freelance', 'Investment', 'Rent', 'Utilities',
@@ -327,6 +329,89 @@ const ExpenseTable = ({ transactions, onUpdate }) => {
       maximumFractionDigits: 2,
     });
 
+  const handleExportCSV = () => {
+    const csvData = transactions.map(t => ({
+      Date: new Date(t.date).toLocaleDateString(),
+      Description: t.description || '',
+      Category: t.category,
+      Type: t.type,
+      Amount: t.amount
+    }));
+    const csv = Papa.unparse(csvData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'transactions_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('CSV Exported');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add modern Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(124, 58, 237); // Primary violet color
+    doc.text('Expense Tracker Report', 14, 20);
+    
+    // Add subtitle with date
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 14, 28);
+    
+    const tableData = transactions.map(t => [
+      new Date(t.date).toLocaleDateString(),
+      t.description || 'No description',
+      t.category,
+      t.type.toUpperCase(),
+      `P${formatAmount(t.amount)}`
+    ]);
+
+    autoTable(doc, {
+      head: [['Date', 'Description', 'Category', 'Type', 'Amount']],
+      body: tableData,
+      startY: 35,
+      theme: 'striped',
+      styles: {
+        font: 'helvetica',
+        fontSize: 10,
+        cellPadding: 6,
+        lineColor: [230, 230, 230],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [124, 58, 237], // Violet matching brand
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 252],
+      },
+      columnStyles: {
+        4: { halign: 'right', fontStyle: 'bold' } // Right align the amount
+      },
+      didParseCell: function(data) {
+        // Color row text based on Income or Expense
+        if (data.section === 'body') {
+          const type = data.row.raw[3]; // The "Type" column
+          if (type === 'INCOME') {
+            data.cell.styles.textColor = [16, 185, 129]; // Emerald-500
+          } else if (type === 'EXPENSE') {
+            data.cell.styles.textColor = [244, 63, 94]; // Rose-500
+          }
+        }
+      }
+    });
+
+    doc.save('FinAI_Transactions_Report.pdf');
+    toast.success('Beautiful PDF Exported!');
+  };
+
   if (!transactions || transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-neutral-50 dark:bg-white/5 rounded-3xl border border-dashed border-neutral-200 dark:border-white/20">
@@ -363,9 +448,9 @@ const ExpenseTable = ({ transactions, onUpdate }) => {
 
       <div className="w-full bg-white dark:bg-white/5 shadow-xl dark:shadow-2xl dark:backdrop-blur-xl border border-neutral-100 dark:border-white/10 rounded-3xl overflow-hidden animate-in fade-in slide-in-from-left-4 duration-500 flex flex-col">
 
-        {/* Search Header */}
-        <div className="p-4 border-b border-neutral-100 dark:border-white/5">
-          <div className="relative">
+        {/* Search & Export Header */}
+        <div className="p-4 border-b border-neutral-100 dark:border-white/5 flex flex-col md:flex-row gap-4 justify-between">
+          <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
@@ -374,6 +459,14 @@ const ExpenseTable = ({ transactions, onUpdate }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-neutral-50 dark:bg-black/20 border border-neutral-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all text-sm text-neutral-900 dark:text-white"
             />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-sm font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all">
+              <FiDownload /> CSV
+            </button>
+            <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 rounded-xl text-sm font-semibold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all">
+              <FiDownload /> PDF
+            </button>
           </div>
         </div>
 

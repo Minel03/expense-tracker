@@ -85,3 +85,30 @@ export const getTransactionSummary = async (userId) => {
   summary.balance = summary.income - summary.expense;
   return { data: summary, error: null };
 };
+
+// --- Budget Functions ---
+
+export const getBudgets = async (userId, month) => {
+  const { data, error } = await supabase
+    .from('budgets')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('month', month);
+  return { data, error };
+};
+
+export const upsertBudget = async (budget) => {
+  const { data, error } = await supabase
+    .from('budgets')
+    .upsert([budget], { onConflict: 'user_id, category, month' })
+    .select();
+  return { data, error };
+};
+
+export const deleteBudget = async (id) => {
+  const { error } = await supabase
+    .from('budgets')
+    .delete()
+    .eq('id', id);
+  return { error };
+};

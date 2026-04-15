@@ -4,7 +4,9 @@ import Navbar from '@/components/navbar/Navbar';
 import ExpenseTable from '@/components/expense-table/ExpenseTable';
 import ExpenseForm from '@/components/expense-form/ExpenseForm';
 import TransactionCalendar from '@/components/transaction-calendar/TransactionCalendar';
-import { getTransactions, getTransactionSummary } from '@/lib/transactions';
+import BudgetTracker from '@/components/budget/BudgetTracker';
+import AIChat from '@/components/chat/AIChat';
+import { getTransactions, getTransactionSummary, getBudgets } from '@/lib/transactions';
 import { getCurrentUser } from '@/lib/auth';
 import { generateFinancialInsights } from '@/lib/ai';
 import { useTheme } from 'next-themes';
@@ -45,6 +47,7 @@ ChartJS.register(
 const DashboardContent = () => {
   const [user, setUser] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
   const [aiData, setAiData] = useState({ insights: [], prediction: '', tips: [] });
   const [loading, setLoading] = useState(true);
@@ -61,9 +64,12 @@ const DashboardContent = () => {
 
     const { data: transData } = await getTransactions(currentUser.id);
     const { data: summData } = await getTransactionSummary(currentUser.id);
+    const monthStr = new Date().toISOString().slice(0, 7);
+    const { data: budgetsData } = await getBudgets(currentUser.id, monthStr);
 
     setTransactions(transData || []);
     setSummary(summData || { income: 0, expense: 0, balance: 0 });
+    setBudgets(budgetsData || []);
 
     if (transData && transData.length > 0) {
       const data = await generateFinancialInsights(
@@ -223,8 +229,16 @@ const DashboardContent = () => {
             </div>
           </div>
 
-          {/* Analysis Side Panel (Less "AI" focused) */}
+          {/* Analysis Side Panel */}
           <div className='space-y-8'>
+            <BudgetTracker 
+              budgets={budgets} 
+              transactions={transactions} 
+              userId={user?.id}
+              month={new Date().toISOString().slice(0, 7)}
+              onUpdate={fetchData}
+            />
+
             <div className='bg-white dark:bg-white/5 shadow-xl dark:shadow-2xl dark:backdrop-blur-xl border border-neutral-100 dark:border-white/10 p-8 rounded-3xl relative overflow-hidden transition-all'>
               <h3 className='text-xl font-bold mb-6 flex items-center gap-2'>
                 <FiActivity className='text-neutral-400' />
@@ -278,6 +292,15 @@ const DashboardContent = () => {
           onClose={() => router.push('/dashboard')}
         />
       )}
+
+      {/* FinAI Chat Widget */}
+      <AIChat 
+        transactions={transactions} 
+        summary={summary} 
+        userName={user?.user_metadata?.full_name?.split(' ')[0] || 'User'}
+        userId={user?.id}
+        onUpdate={fetchData}
+      />
     </div>
   );
 };

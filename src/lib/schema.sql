@@ -21,6 +21,18 @@ CREATE TABLE IF NOT EXISTS transactions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Create budgets table
+CREATE TABLE IF NOT EXISTS budgets (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+    category TEXT NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL,
+    month VARCHAR(7) NOT NULL, -- e.g., '2023-10'
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, category, month)
+);
+
 -- Create insights table (for AI suggestions)
 CREATE TABLE IF NOT EXISTS insights (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -34,6 +46,7 @@ CREATE TABLE IF NOT EXISTS insights (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
 CREATE POLICY "Users can view their own profile" ON profiles
@@ -60,6 +73,19 @@ CREATE POLICY "Users can view their own insights" ON insights
 
 CREATE POLICY "Users can insert their own insights" ON insights
     FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Budgets Policies
+CREATE POLICY "Users can view their own budgets" ON budgets
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own budgets" ON budgets
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own budgets" ON budgets
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own budgets" ON budgets
+    FOR DELETE USING (auth.uid() = user_id);
 
 -- Function to handle new user profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
