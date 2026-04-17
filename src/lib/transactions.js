@@ -176,39 +176,70 @@ export const processSubscriptions = async (userId) => {
   if (subError || !subs) return;
 
   const today = new Date();
-  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const currentYear = today.getFullYear();
+  const currentMonthNum = today.getMonth() + 1; // 1-based
+  const currentMonthStr = `${currentYear}-${String(currentMonthNum).padStart(2, '0')}`;
   const currentDay = today.getDate();
 
   const transactionsToInsert = [];
   const subsToUpdate = [];
 
   for (const sub of subs) {
-    if (sub.last_processed_month !== currentMonth && currentDay >= sub.billing_day) {
-      // Create a new transaction explicitly marked as recurring
+    const cycle = sub.billing_cycle || 'monthly';
+    let shouldProcess = false;
+
+    if (cycle === 'monthly') {
+      // Monthly logic: check if this month is processed
+      if (sub.last_processed_month !== currentMonthStr && currentDay >= sub.billing_day) {
+        shouldProcess = true;
+      }
+    } else if (cycle === 'yearly') {
+      // Yearly logic: check if this year is processed AND we are at/past the month+day
+      const hasProcessedThisYear = sub.last_processed_year === currentYear;
+      const subMonth = sub.billing_month || 1;
+      
+      if (!hasProcessedThisYear) {
+        const isPastMonth = currentMonthNum > subMonth;
+        const isCorrectMonthAndDay = currentMonthNum === subMonth && currentDay >= sub.billing_day;
+        
+        if (isPastMonth || isCorrectMonthAndDay) {
+          shouldProcess = true;
+        }
+      }
+    }
+
+    if (shouldProcess) {
+      // Create a new transaction
       transactionsToInsert.push({
         user_id: userId,
         type: 'expense',
         amount: sub.amount,
         category: sub.category,
         description: sub.name,
-        date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(sub.billing_day).padStart(2, '0')}`,
+        date: `${currentYear}-${String(cycle === 'monthly' ? currentMonthNum : sub.billing_month).padStart(2, '0')}-${String(sub.billing_day).padStart(2, '0')}`,
         is_recurring: true
       });
 
       subsToUpdate.push({
         id: sub.id,
-        last_processed_month: currentMonth
+        updates: {
+          last_processed_month: currentMonthStr,
+          last_processed_year: currentYear
+        }
       });
     }
   }
 
   if (transactionsToInsert.length > 0) {
-    // Inject the simulated transaction
+    // Inject transactions
     await bulkAddTransactions(transactionsToInsert);
 
-    // Patch the subscriptions so they aren't Double-Processed
+    // Patch subscriptions
     for (const subUpdate of subsToUpdate) {
-      await supabase.from('subscriptions').update({ last_processed_month: subUpdate.last_processed_month }).eq('id', subUpdate.id);
+      await supabase
+        .from('subscriptions')
+        .update(subUpdate.updates)
+        .eq('id', subUpdate.id);
     }
   }
 };

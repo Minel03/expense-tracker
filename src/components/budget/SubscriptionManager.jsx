@@ -21,7 +21,14 @@ const SubscriptionManager = ({ subscriptions, onUpdate, userId }) => {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [billingDay, setBillingDay] = useState('');
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [billingMonth, setBillingMonth] = useState(new Date().getMonth() + 1);
   const [category, setCategory] = useState('Entertainment');
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -41,8 +48,11 @@ const SubscriptionManager = ({ subscriptions, onUpdate, userId }) => {
         name,
         amount: parseFloat(amount),
         billing_day: day,
+        billing_month: billingCycle === 'yearly' ? parseInt(billingMonth) : null,
+        billing_cycle: billingCycle,
         category,
-        last_processed_month: '', // starts empty so engine triggers immediately if past the date
+        last_processed_month: '',
+        last_processed_year: 0,
       },
     ]);
 
@@ -50,22 +60,27 @@ const SubscriptionManager = ({ subscriptions, onUpdate, userId }) => {
     if (error) {
       toast.error(error.message);
     } else {
-      // Immediately run the engine so if billing day has already passed this
-      // month, the transaction fires right now instead of on the next page load.
       await processSubscriptions(userId);
 
-      const today = new Date().getDate();
-      const day = parseInt(billingDay);
-      if (today >= day) {
-        toast.success(`✅ "${name}" activated & deducted for this month!`);
+      const today = new Date();
+      const currentDay = today.getDate();
+      const currentMonth = today.getMonth() + 1;
+      
+      let wasDeducted = false;
+      if (billingCycle === 'monthly' && currentDay >= day) wasDeducted = true;
+      if (billingCycle === 'yearly' && (currentMonth > billingMonth || (currentMonth === billingMonth && currentDay >= day))) wasDeducted = true;
+
+      if (wasDeducted) {
+        toast.success(`✅ "${name}" activated & deducted!`);
       } else {
-        toast.success(`✅ "${name}" activated! First bill on the ${day}${day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'}.`);
+        toast.success(`✅ "${name}" activated!`);
       }
 
       setIsAdding(false);
       setName('');
       setAmount('');
       setBillingDay('');
+      setBillingCycle('monthly');
       if (onUpdate) onUpdate();
     }
   };
@@ -128,7 +143,37 @@ const SubscriptionManager = ({ subscriptions, onUpdate, userId }) => {
                 required
               />
             </div>
-            <div className='w-24'>
+            <div className='flex-1'>
+              <label className='text-xs text-neutral-500 uppercase tracking-wider font-semibold'>
+                Frequency
+              </label>
+              <select
+                value={billingCycle}
+                onChange={(e) => setBillingCycle(e.target.value)}
+                className='w-full mt-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 cursor-pointer'>
+                <option value='monthly'>Monthly</option>
+                <option value='yearly'>Yearly</option>
+              </select>
+            </div>
+          </div>
+
+          <div className='flex gap-3'>
+            {billingCycle === 'yearly' && (
+              <div className='flex-1'>
+                <label className='text-xs text-neutral-500 uppercase tracking-wider font-semibold'>
+                  Month
+                </label>
+                <select
+                  value={billingMonth}
+                  onChange={(e) => setBillingMonth(e.target.value)}
+                  className='w-full mt-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 cursor-pointer'>
+                  {months.map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className={billingCycle === 'yearly' ? 'w-24' : 'w-full'}>
               <label className='text-xs text-neutral-500 uppercase tracking-wider font-semibold'>
                 Day (1-31)
               </label>
@@ -179,21 +224,44 @@ const SubscriptionManager = ({ subscriptions, onUpdate, userId }) => {
               key={sub.id}
               className='p-3 bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-white/5 rounded-2xl flex items-center justify-between group'>
               <div>
-                <p className='font-semibold text-sm'>{sub.name}</p>
+                <div className='flex items-center gap-2'>
+                  <p className='font-semibold text-sm'>{sub.name}</p>
+                  <span className='text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold uppercase tracking-tighter'>
+                    {sub.billing_cycle || 'monthly'}
+                  </span>
+                </div>
                 <p className='text-xs text-neutral-500 flex items-center gap-1 mt-0.5'>
                   <FiCalendar className='w-3 h-3' />
                   {(() => {
                     const today = new Date();
-                    const billedThisMonth = sub.last_processed_month === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-                    if (billedThisMonth) {
-                      // Calculate next month's billing date
-                      const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, sub.billing_day);
-                      return `Next bill: ${nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
-                    } else if (today.getDate() >= sub.billing_day) {
-                      return `Due this month (missed — will retry on reload)`;
+                    const cycle = sub.billing_cycle || 'monthly';
+                    
+                    if (cycle === 'monthly') {
+                      const billedThisMonth = sub.last_processed_month === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                      if (billedThisMonth) {
+                        const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, sub.billing_day);
+                        return `Next: ${nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+                      } else if (today.getDate() >= sub.billing_day) {
+                        return `Due this month`;
+                      } else {
+                        const thisMonth = new Date(today.getFullYear(), today.getMonth(), sub.billing_day);
+                        return `Next: ${thisMonth.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+                      }
                     } else {
-                      const thisMonth = new Date(today.getFullYear(), today.getMonth(), sub.billing_day);
-                      return `Next bill: ${thisMonth.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+                      // Yearly
+                      const hasProcessedThisYear = sub.last_processed_year === today.getFullYear();
+                      const subMonth = sub.billing_month || 1;
+                      if (hasProcessedThisYear) {
+                        const nextDate = new Date(today.getFullYear() + 1, subMonth - 1, sub.billing_day);
+                        return `Next: ${nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                      } else {
+                        const thisYearBillDate = new Date(today.getFullYear(), subMonth - 1, sub.billing_day);
+                        if (today > thisYearBillDate) {
+                          return `Due this year`;
+                        } else {
+                          return `Next: ${thisYearBillDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+                        }
+                      }
                     }
                   })()}
                 </p>
