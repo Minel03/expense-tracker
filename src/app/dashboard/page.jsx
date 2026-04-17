@@ -104,11 +104,43 @@ const DashboardContent = () => {
   }, []);
 
   const monthLabel = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-
   const expenseTransactions = transactions.filter((t) => t.type === 'expense');
+
   const expenseCategories = [
     ...new Set(expenseTransactions.map((t) => t.category)),
   ];
+
+  // Professional color palette for categories
+  const PRESET_COLORS = [
+    'rgba(139, 92, 246, 0.8)', // Violet
+    'rgba(6, 182, 212, 0.8)',  // Cyan
+    'rgba(244, 63, 94, 0.8)',  // Rose
+    'rgba(245, 158, 11, 0.8)', // Amber
+    'rgba(16, 185, 129, 0.8)', // Emerald
+    'rgba(59, 130, 246, 0.8)', // Blue
+    'rgba(236, 72, 153, 0.8)', // Pink
+    'rgba(249, 115, 22, 0.8)', // Orange
+    'rgba(132, 204, 22, 0.8)', // Lime
+    'rgba(100, 116, 139, 0.8)', // Slate
+    'rgba(168, 85, 247, 0.8)', // Purple
+    'rgba(20, 184, 166, 0.8)', // Teal
+    'rgba(217, 70, 239, 0.8)', // Fuchsia
+    'rgba(248, 113, 113, 0.8)', // Red
+    'rgba(34, 197, 94, 0.8)',  // Green
+  ];
+
+  const getCategoryColors = (categories) => {
+    return categories.map((cat, i) => {
+      if (i < PRESET_COLORS.length) return PRESET_COLORS[i];
+      // Deterministic color generation for extra categories
+      let hash = 0;
+      for (let j = 0; j < cat.length; j++) {
+        hash = cat.charCodeAt(j) + ((hash << 5) - hash);
+      }
+      const hue = Math.abs(hash % 360);
+      return `hsla(${hue}, 65%, 55%, 0.8)`;
+    });
+  };
 
   const chartData = {
     labels: expenseCategories,
@@ -119,14 +151,7 @@ const DashboardContent = () => {
             .filter((t) => t.category === cat)
             .reduce((sum, t) => sum + parseFloat(t.amount), 0),
         ),
-        backgroundColor: [
-          'rgba(139, 92, 246, 0.8)',
-          'rgba(6, 182, 212, 0.8)',
-          'rgba(244, 63, 94, 0.8)',
-          'rgba(245, 158, 11, 0.8)',
-          'rgba(16, 185, 129, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-        ],
+        backgroundColor: getCategoryColors(expenseCategories),
         borderColor:
           theme === 'dark' ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 1)',
         borderWidth: 2,
