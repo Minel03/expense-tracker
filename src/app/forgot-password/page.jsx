@@ -92,13 +92,25 @@ const ForgotPassword = () => {
             <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <FiMail className="w-8 h-8" />
             </div>
-            <button
-              onClick={() => setSubmitted(false)}
-              className="text-violet-400 hover:text-violet-300 font-medium transition-colors disabled:opacity-50"
-              disabled={cooldown > 0}
-            >
-              {cooldown > 0 ? `Please wait ${cooldown}s to try again` : "Didn't get the email? Try again"}
-            </button>
+            <div className="space-y-4">
+              <button
+                onClick={() => setSubmitted(false)}
+                className="block w-full text-violet-400 hover:text-violet-300 font-medium transition-colors disabled:opacity-50"
+                disabled={cooldown > 0}
+              >
+                {cooldown > 0 ? `Resend available in ${cooldown}s` : "Didn't get the email? Try again"}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSubmitted(false);
+                  setEmail('');
+                }}
+                className="block w-full text-sm text-neutral-500 hover:text-white transition-colors"
+              >
+                Entered wrong email? Change it
+              </button>
+            </div>
           </div>
         )}
       </div>
