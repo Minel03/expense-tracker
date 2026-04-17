@@ -11,8 +11,8 @@ const ForgotPassword = () => {
   const [submitted, setSubmitted] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  const startCooldown = () => {
-    setCooldown(60);
+  const startCooldown = (seconds = 60) => {
+    setCooldown(seconds);
     const timer = setInterval(() => {
       setCooldown(prev => {
         if (prev <= 1) {
@@ -27,7 +27,7 @@ const ForgotPassword = () => {
   const handleReset = async (e) => {
     e.preventDefault();
     if (cooldown > 0) {
-      toast.error(`Please wait ${cooldown} seconds before trying again.`);
+      toast.error(`Security cooldown: Please wait ${cooldown} seconds.`);
       return;
     }
 
@@ -35,14 +35,15 @@ const ForgotPassword = () => {
     const { error } = await resetPassword(email);
     if (error) {
       if (error.message.includes('rate limit')) {
-        toast.error('Too many requests. Please wait a minute before trying again.');
+        toast.error('The security filter blocked this attempt. Please wait 2 minutes before trying again.');
+        startCooldown(120); // Automatically wait longer
       } else {
         toast.error(error.message);
       }
     } else {
       toast.success('Password reset link sent to your email!');
       setSubmitted(true);
-      startCooldown();
+      startCooldown(60);
     }
     setLoading(false);
   };
