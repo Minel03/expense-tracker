@@ -9,6 +9,7 @@ A modern, AI-powered personal finance tracker built with **Next.js**, **Supabase
 ### 📊 Dashboard
 
 - **Summary Cards** — Total Balance, Income, and Expenses with Philippine Peso (₱) formatting
+- **Optimized Rendering** — Parallel data fetching and asynchronous AI generation for ultra-fast load times
 - **Spending Distribution Chart** — Doughnut chart showing expense breakdown by category
 - **Transaction Calendar** — Full monthly calendar with clickable dates showing daily transaction summaries
 - **Recent Transactions Table** — Searchable, paginated table with full CRUD support, sorted by latest first
@@ -33,10 +34,19 @@ A modern, AI-powered personal finance tracker built with **Next.js**, **Supabase
 
 ### 🔁 Smart Subscription Manager
 
-- Register recurring subscriptions (Netflix, Spotify, Gym, etc.) with a billing day
+- Register recurring subscriptions (Netflix, Spotify, Gym, Domains, Insurance)
+- **Flexible Billing Cycles** — Support for both **Monthly** and **Yearly** billing schedules
 - **Auto-deduction engine** — on every dashboard load, the system checks if it's time to bill any active subscription and automatically injects the expense into your transaction ledger
-- Each subscription card shows the **next billing date** dynamically
+- Each subscription card shows the **next billing date** dynamically, accurately calculating the next month or year
 - **Smart De-Duplicator** — when importing a CSV, the system cross-references existing auto-generated recurring transactions and drops any duplicates to prevent double-billing
+
+### 🔐 Security & Identity
+
+- **Enterprise Authentication** — Secure Email/Password registration and login via Supabase Auth
+- **Account Recovery** — Secure "Forgot Password" flow with rate-limiting protection and global event listeners for flawless redirects
+- **Protective Routing** — Strict Auth Guards secure the dashboard and settings, while "Reverse Guards" intercept logged-in users away from auth pages
+- **Profile Management** — Dedicated settings page to update display name, email, and password on the fly
+- **Data Isolation** — Row Level Security (RLS) policies brutally enforce that users can only ever access their own data, receipts, and insights
 
 ### 🤖 AI CSV Import (Auto-Mapper)
 
