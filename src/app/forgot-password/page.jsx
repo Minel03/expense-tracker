@@ -1,15 +1,25 @@
 "use client";
-import React, { useState } from 'react';
-import { resetPassword } from '@/lib/auth';
+import React, { useState, useEffect } from 'react';
+import { resetPassword, getCurrentUser } from '@/lib/auth';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { FiMail, FiArrowLeft } from 'react-icons/fi';
 
 const ForgotPassword = () => {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const user = await getCurrentUser();
+      if (user) router.push('/dashboard');
+    };
+    checkUser();
+  }, [router]);
 
   const startCooldown = (seconds = 60) => {
     setCooldown(seconds);
