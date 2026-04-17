@@ -9,16 +9,40 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  const startCooldown = () => {
+    setCooldown(60);
+    const timer = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleReset = async (e) => {
     e.preventDefault();
+    if (cooldown > 0) {
+      toast.error(`Please wait ${cooldown} seconds before trying again.`);
+      return;
+    }
+
     setLoading(true);
     const { error } = await resetPassword(email);
     if (error) {
-      toast.error(error.message);
+      if (error.message.includes('rate limit')) {
+        toast.error('Too many requests. Please wait a minute before trying again.');
+      } else {
+        toast.error(error.message);
+      }
     } else {
       toast.success('Password reset link sent to your email!');
       setSubmitted(true);
+      startCooldown();
     }
     setLoading(false);
   };
@@ -57,10 +81,10 @@ const ForgotPassword = () => {
             
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || cooldown > 0}
               className="w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-bold hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 shadow-lg shadow-violet-500/20"
             >
-              {loading ? 'Sending Link...' : 'Send Reset Link'}
+              {loading ? 'Sending Link...' : cooldown > 0 ? `Wait ${cooldown}s` : 'Send Reset Link'}
             </button>
           </form>
         ) : (
@@ -70,9 +94,10 @@ const ForgotPassword = () => {
             </div>
             <button
               onClick={() => setSubmitted(false)}
-              className="text-violet-400 hover:text-violet-300 font-medium transition-colors"
+              className="text-violet-400 hover:text-violet-300 font-medium transition-colors disabled:opacity-50"
+              disabled={cooldown > 0}
             >
-              Didn't get the email? Try again
+              {cooldown > 0 ? `Please wait ${cooldown}s to try again` : "Didn't get the email? Try again"}
             </button>
           </div>
         )}
