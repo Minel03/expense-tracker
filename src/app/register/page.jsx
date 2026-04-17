@@ -12,6 +12,8 @@ const Register = () => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [cooldown, setCooldown] = useState(0);
+
   useEffect(() => {
     const checkUser = async () => {
       const user = await getCurrentUser();
@@ -20,12 +22,35 @@ const Register = () => {
     checkUser();
   }, [router]);
 
+  const startCooldown = (seconds = 60) => {
+    setCooldown(seconds);
+    const timer = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (cooldown > 0) {
+      toast.error(`Security cooldown: Please wait ${cooldown} seconds.`);
+      return;
+    }
+
     setLoading(true);
     const { error } = await signUp(email, password, fullName);
     if (error) {
-      toast.error(error.message);
+      if (error.message.includes('rate limit')) {
+        toast.error('The security filter on the database is active. Please wait a few minutes before trying again.', { duration: 6000 });
+        startCooldown(120);
+      } else {
+        toast.error(error.message);
+      }
     } else {
       toast.success('Registration successful! Please check your email.');
       router.push('/login');
@@ -78,10 +103,10 @@ const Register = () => {
           
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || cooldown > 0}
             className="w-full py-4 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-bold hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 shadow-lg shadow-violet-500/20"
           >
-            {loading ? 'Creating Account...' : 'Sign Up'}
+            {loading ? 'Creating Account...' : cooldown > 0 ? `Wait ${cooldown}s` : 'Sign Up'}
           </button>
         </form>
 
