@@ -35,8 +35,8 @@ const ForgotPassword = () => {
     const { error } = await resetPassword(email);
     if (error) {
       if (error.message.includes('rate limit')) {
-        toast.error('The security filter blocked this attempt. Please wait 2 minutes before trying again.');
-        startCooldown(120); // Automatically wait longer
+        toast.error('The security filter on the database is active. If this persists, please wait 15 minutes before your next attempt.', { duration: 6000 });
+        startCooldown(120); // Adaptive cooldown
       } else {
         toast.error(error.message);
       }
