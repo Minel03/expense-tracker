@@ -77,29 +77,36 @@ const DashboardContent = () => {
     }
     setUser(currentUser);
 
-    // Auto-Biller: check and fire background deductions first
-    await processSubscriptions(currentUser.id);
-
     const monthStr = new Date().toISOString().slice(0, 7);
-    const { data: transData } = await getTransactions(currentUser.id, monthStr);
-    const { data: summData } = await getTransactionSummary(currentUser.id, monthStr);
-    const { data: budgetsData } = await getBudgets(currentUser.id, monthStr);
-    const { data: subsData } = await getSubscriptions(currentUser.id);
 
-    setTransactions(transData || []);
-    setSummary(summData || { income: 0, expense: 0, balance: 0 });
-    setBudgets(budgetsData || []);
-    setSubscriptions(subsData || []);
+    // 1. Parallel Fetching: Load everything at once instead of one by one
+    // This dramatically reduces wait time (Waterfall -> Parallel)
+    const [transRes, summRes, budgetsRes, subsRes] = await Promise.all([
+      getTransactions(currentUser.id, monthStr),
+      getTransactionSummary(currentUser.id, monthStr),
+      getBudgets(currentUser.id, monthStr),
+      getSubscriptions(currentUser.id),
+      // Background process deductions without blocking the UI
+      processSubscriptions(currentUser.id),
+    ]);
 
-    if (transData && transData.length > 0) {
-      const data = await generateFinancialInsights(
-        transData,
-        summData,
+    setTransactions(transRes.data || []);
+    setSummary(summRes.data || { income: 0, expense: 0, balance: 0 });
+    setBudgets(budgetsRes.data || []);
+    setSubscriptions(subsRes.data || []);
+
+    // 2. Immediate Render: Show the dashboard as soon as data is ready
+    setLoading(false);
+
+    // 3. Deferred AI Analysis: Let the AI work in the background!
+    if (transRes.data && transRes.data.length > 0) {
+      const aiResponse = await generateFinancialInsights(
+        transRes.data,
+        summRes.data,
         currentUser.id,
       );
-      setAiData(data);
+      setAiData(aiResponse);
     }
-    setLoading(false);
   };
 
   useEffect(() => {

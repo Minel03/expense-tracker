@@ -11,6 +11,7 @@ import {
   FiX,
   FiMoon,
   FiSun,
+  FiSettings,
 } from 'react-icons/fi';
 import { useTheme } from 'next-themes';
 
@@ -80,9 +81,14 @@ const Navbar = () => {
               Dashboard
             </NavLink>
             <NavLink
-              href='?add=true'
+              href='/dashboard?add=true'
               icon={FiPlusCircle}>
               Add Transaction
+            </NavLink>
+            <NavLink
+              href='/settings'
+              icon={FiSettings}>
+              Settings
             </NavLink>
           </div>
 
@@ -138,9 +144,14 @@ const Navbar = () => {
                 Dashboard
               </NavLink>
               <NavLink
-                href='?add=true'
+                href='/dashboard?add=true'
                 icon={FiPlusCircle}>
                 Add Transaction
+              </NavLink>
+              <NavLink
+                href='/settings'
+                icon={FiSettings}>
+                Settings
               </NavLink>
             </div>
           </div>
