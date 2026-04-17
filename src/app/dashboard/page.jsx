@@ -71,7 +71,10 @@ const DashboardContent = () => {
 
   const fetchData = async () => {
     const currentUser = await getCurrentUser();
-    if (!currentUser) return;
+    if (!currentUser) {
+      router.push('/');
+      return;
+    }
     setUser(currentUser);
 
     // Auto-Biller: check and fire background deductions first
