@@ -11,6 +11,13 @@ const LandingPage = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      // If we're in the middle of a password reset flow, don't redirect to dashboard!
+      // This allows the recovery link to work correctly.
+      if (window.location.hash.includes('access_token=') && window.location.hash.includes('type=recovery')) {
+        setLoading(false);
+        return;
+      }
+
       const user = await getCurrentUser();
       if (user) {
         router.push('/dashboard');

@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import { ThemeProvider } from "@/components/theme-provider";
+import AuthListener from "@/components/auth/AuthListener";
 
 export const metadata = {
   title: "FIMS - Financial Insight System",
@@ -49,6 +50,7 @@ export default function RootLayout({ children }) {
               },
             }}
           />
+          <AuthListener />
           {children}
         </ThemeProvider>
       </body>
