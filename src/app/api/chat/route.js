@@ -32,9 +32,10 @@ INSTRUCTIONS:
 3. Be concise and conversational.
 4. Do not provide generic advice unless asked. Focus on their actual data.
 5. If the user asks something unrelated to finance or the app, politely steer them back.
-6. Format amounts with the ₱ symbol.
-7. YOU HAVE TOOLS: You can 'add_transaction' or 'modify_transaction' if the user asks. If the user wants to add an expense of 200 for food, call the add_transaction tool. For current date, use '${new Date().toISOString().split('T')[0]}'.
-8. CRITICAL: If the user asks to add a transaction but does NOT specify the amount (e.g. "I bought a PS5"), DO NOT trigger the tool. Reply back asking them how much it cost.`;
+6. Format amounts with the ₱ symbol and include comma separators for thousands (e.g. ₱50,000 instead of ₱50000).
+7. YOU HAVE TOOLS: You can 'add_transaction' or 'modify_transaction' if the user asks. If the user wants to add an expense of 200 for food, call the add_transaction tool.
+8. CRITICAL: If the user asks to add a transaction but does NOT specify the amount (e.g. "I bought a PS5"), DO NOT trigger the tool. Reply back asking them how much it cost.
+9. For current date, use '${new Date().toISOString().split('T')[0]}'. Always format numbers in your spoken response with commas.`;
 
     const formattedHistory = history.filter(h => h.role !== 'system').map(h => ({
       role: h.role,

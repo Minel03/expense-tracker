@@ -1,12 +1,24 @@
 import { supabase } from './supabaseClient';
 
-export const getTransactions = async (userId) => {
-  const { data, error } = await supabase
+export const getTransactions = async (userId, month = null) => {
+  let query = supabase
     .from('transactions')
     .select('*')
     .eq('user_id', userId)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false });
+
+  if (month) {
+    const startOfMonth = `${month}-01`;
+    const year = parseInt(month.split('-')[0]);
+    const monthIdx = parseInt(month.split('-')[1]);
+    const lastDay = new Date(year, monthIdx, 0).getDate();
+    const endOfMonth = `${month}-${String(lastDay).padStart(2, '0')}`;
+    
+    query = query.gte('date', startOfMonth).lte('date', endOfMonth);
+  }
+
+  const { data, error } = await query;
   return { data, error };
 };
 
@@ -71,15 +83,16 @@ export const deleteReceipt = async (path) => {
   return { error };
 };
 
-export const getTransactionSummary = async (userId) => {
-  const { data, error } = await supabase
+export const getTransactionSummary = async (userId, month = null) => {
+  // We always need all transactions to calculate lifetime balance
+  const { data: allData, error: allErr } = await supabase
     .from('transactions')
-    .select('type, amount')
+    .select('type, amount, date')
     .eq('user_id', userId);
   
-  if (error) return { error };
+  if (allErr) return { error: allErr };
 
-  const summary = data.reduce(
+  const lifetime = allData.reduce(
     (acc, curr) => {
       if (curr.type === 'income') {
         acc.income += parseFloat(curr.amount);
@@ -91,8 +104,33 @@ export const getTransactionSummary = async (userId) => {
     { income: 0, expense: 0 }
   );
 
-  summary.balance = summary.income - summary.expense;
-  return { data: summary, error: null };
+  let monthly = { income: 0, expense: 0 };
+  if (month) {
+    monthly = allData
+      .filter(t => t.date && t.date.startsWith(month))
+      .reduce(
+        (acc, curr) => {
+          if (curr.type === 'income') {
+            acc.income += parseFloat(curr.amount);
+          } else {
+            acc.expense += parseFloat(curr.amount);
+          }
+          return acc;
+        },
+        { income: 0, expense: 0 }
+      );
+  } else {
+    monthly = { ...lifetime };
+  }
+
+  return { 
+    data: { 
+      income: monthly.income, 
+      expense: monthly.expense, 
+      balance: lifetime.income - lifetime.expense 
+    }, 
+    error: null 
+  };
 };
 
 // --- Budget Functions ---

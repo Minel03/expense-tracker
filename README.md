@@ -55,7 +55,7 @@ A modern, AI-powered personal finance tracker built with **Next.js**, **Supabase
 - Quick presets: **This Month**, **Last Month**, **This Year**, **All Time**
 - Or pick any custom From / To date range
 - PDF includes the date period header, color-coded income/expense rows, and violet branded table headers
-- Filenames include the selected date range (e.g. `FinAI_Report_2026-04-01_to_2026-04-30.pdf`)
+- Filenames include the selected date range (e.g. `Expense Report 2026-04-01 - 2026-04-30.pdf`)
 
 ### 🗓️ Transaction Calendar
 
@@ -121,6 +121,7 @@ GROQ_API_KEY=your_groq_api_key
 Run the full SQL in `src/lib/schema.sql` in your Supabase **SQL Editor**.
 
 This creates the following tables with RLS policies:
+
 - `profiles` — user profile data
 - `transactions` — income/expense records (includes `is_recurring` flag)
 - `budgets` — monthly budget goals per category

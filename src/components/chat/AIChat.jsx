@@ -57,7 +57,7 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
               actionMessage = "Sorry, I encountered an error saving that.";
             } else {
               toast.success("Transaction added via AI!");
-              actionMessage = `I've added the ${args.type} of ₱${args.amount} for ${args.category}.`;
+              actionMessage = `I've added the ${args.type} of ₱${parseFloat(args.amount).toLocaleString()} for ${args.category}.`;
               if (onUpdate) onUpdate();
             }
           } 

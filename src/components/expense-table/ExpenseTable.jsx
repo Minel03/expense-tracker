@@ -23,11 +23,12 @@ import {
   FiTag,
   FiCalendar,
   FiExternalLink,
-  FiUpload
+  FiUpload,
 } from 'react-icons/fi';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { utils, writeFile } from 'xlsx';
 
 const categories = [
   'Salary',
@@ -43,6 +44,13 @@ const categories = [
   'Travel',
   'Other',
 ];
+
+const formatDateLocal = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // ─── Transaction Detail Modal ────────────────────────────────────────────────
 const TransactionDetailModal = ({
@@ -406,14 +414,14 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
 
     setIsImporting(true);
     setImportProgress(10);
-    
+
     Papa.parse(file, {
       skipEmptyLines: true,
       complete: async (results) => {
         try {
           const rows = results.data;
           setImportProgress(30);
-          
+
           if (rows.length === 0) {
             toast.error('CSV is empty');
             setIsImporting(false);
@@ -423,28 +431,31 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
           // Chunk the rows into arrays of 25 to send to the AI
           const chunkSize = 25;
           const allParsedTransactions = [];
-          
+
           for (let i = 0; i < rows.length; i += chunkSize) {
             const chunk = rows.slice(i, i + chunkSize);
-            
+
             const response = await fetch('/api/upload-csv', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ rows: chunk, userId })
+              body: JSON.stringify({ rows: chunk, userId }),
             });
 
             if (!response.ok) {
               const resErr = await response.json();
-              throw new Error(resErr.error || 'Failed to process CSV chunk with AI');
+              throw new Error(
+                resErr.error || 'Failed to process CSV chunk with AI',
+              );
             }
 
             const data = await response.json();
             if (data.transactions && data.transactions.length > 0) {
               allParsedTransactions.push(...data.transactions);
             }
-            
+
             // Artificial progress calculation
-            const progress = 30 + Math.floor(((i + chunkSize) / rows.length) * 50);
+            const progress =
+              30 + Math.floor(((i + chunkSize) / rows.length) * 50);
             setImportProgress(Math.min(progress, 80));
           }
 
@@ -459,26 +470,38 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
           // Smart De-Duplicator Logic (Suggestion 1)
           // We filter out any parsed transactions that match a natively generated
           // Recurring Transaction to prevent double billing!
-          const existingRecurring = transactions.filter(t => t.is_recurring);
-          
-          const deduplicatedTransactions = allParsedTransactions.filter(parsed => {
-            const isDuplicate = existingRecurring.some(existing => {
-              if (existing.category !== parsed.category) return false;
-              // Check if amount is extremely close (prevent exact matches from overlapping)
-              if (Math.abs(parseFloat(existing.amount) - parseFloat(parsed.amount)) > 0.05) return false;
-              
-              // Ensure this existing recurring transaction is from roughly the same month
-              const existingMonth = new Date(existing.date).getMonth();
-              const parsedMonth = new Date(parsed.date).getMonth();
-              if (existingMonth !== parsedMonth) return false;
+          const existingRecurring = transactions.filter((t) => t.is_recurring);
 
-              return true; // Match! It's a duplicate.
-            });
-            return !isDuplicate;
-          });
+          const deduplicatedTransactions = allParsedTransactions.filter(
+            (parsed) => {
+              const isDuplicate = existingRecurring.some((existing) => {
+                if (existing.category !== parsed.category) return false;
+                // Check if amount is extremely close (prevent exact matches from overlapping)
+                if (
+                  Math.abs(
+                    parseFloat(existing.amount) - parseFloat(parsed.amount),
+                  ) > 0.05
+                )
+                  return false;
 
-          if (deduplicatedTransactions.length === 0 && allParsedTransactions.length > 0) {
-            toast.success("AI skipped all rows because they were already natively paid by your Subscriptions Manager!");
+                // Ensure this existing recurring transaction is from roughly the same month
+                const existingMonth = new Date(existing.date).getMonth();
+                const parsedMonth = new Date(parsed.date).getMonth();
+                if (existingMonth !== parsedMonth) return false;
+
+                return true; // Match! It's a duplicate.
+              });
+              return !isDuplicate;
+            },
+          );
+
+          if (
+            deduplicatedTransactions.length === 0 &&
+            allParsedTransactions.length > 0
+          ) {
+            toast.success(
+              'AI skipped all rows because they were already natively paid by your Subscriptions Manager!',
+            );
             setIsImporting(false);
             return;
           }
@@ -487,9 +510,13 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
           const { error } = await bulkAddTransactions(deduplicatedTransactions);
           if (error) throw error;
 
-          const skipped = allParsedTransactions.length - deduplicatedTransactions.length;
-          const skippedText = skipped > 0 ? ` (Blocked ${skipped} duplicate subscriptions)` : '';
-          toast.success(`Successfully mapped and imported ${deduplicatedTransactions.length} transactions!${skippedText}`);
+          const skipped =
+            allParsedTransactions.length - deduplicatedTransactions.length;
+          const skippedText =
+            skipped > 0 ? ` (Blocked ${skipped} duplicate subscriptions)` : '';
+          toast.success(
+            `Successfully mapped and imported ${deduplicatedTransactions.length} transactions!${skippedText}`,
+          );
           if (onUpdate) onUpdate();
         } catch (error) {
           toast.error(error.message);
@@ -502,7 +529,7 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
       error: () => {
         toast.error('Could not read CSV file');
         setIsImporting(false);
-      }
+      },
     });
   };
 
@@ -526,16 +553,36 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
     setExportType('csv');
     // Default to current month range
     const now = new Date();
-    setDateFrom(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
-    setDateTo(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+    setDateFrom(
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+    );
+    setDateTo(
+      formatDateLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    );
     setShowExportModal(true);
   };
 
   const handleExportPDF = () => {
     setExportType('pdf');
     const now = new Date();
-    setDateFrom(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
-    setDateTo(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+    setDateFrom(
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+    );
+    setDateTo(
+      formatDateLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    );
+    setShowExportModal(true);
+  };
+
+  const handleExportExcel = () => {
+    setExportType('excel');
+    const now = new Date();
+    setDateFrom(
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+    );
+    setDateTo(
+      formatDateLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    );
     setShowExportModal(true);
   };
 
@@ -563,31 +610,144 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
         Date: new Date(t.date).toLocaleDateString(),
         Description: t.description || '',
         Category: t.category,
-        Type: t.type,
-        Amount: t.amount,
+        Type: t.type.toUpperCase(),
+        // Signed amount for easy math in spreadsheet
+        Amount: t.type === 'expense' ? -parseFloat(t.amount) : parseFloat(t.amount),
       }));
+
+      // Add Summary Rows
+      const totalIncome = rangeTransactions
+        .filter((t) => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const totalExpense = rangeTransactions
+        .filter((t) => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const net = totalIncome - totalExpense;
+
+      csvData.push({}); // Empty row
+      csvData.push({ Description: 'SUMMARY', Category: 'PERIOD TOTALS' });
+      csvData.push({ Description: 'Total Income', Amount: totalIncome });
+      csvData.push({ Description: 'Total Expenses', Amount: -totalExpense });
+      csvData.push({ Description: 'Net Cash Flow', Amount: net });
+
       const csv = Papa.unparse(csvData);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `transactions_${dateFrom}_to_${dateTo}.csv`);
+      link.setAttribute(
+        'download',
+        `transactions-${dateFrom}-to-${dateTo}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('CSV Exported!');
+      toast.success('CSV Exported with Summary!');
+    } else if (exportType === 'excel') {
+      // Calculate totals
+      const totalIncome = rangeTransactions
+        .filter((t) => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const totalExpense = rangeTransactions
+        .filter((t) => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const net = totalIncome - totalExpense;
+
+      // Prepare data
+      const excelData = rangeTransactions.map((t) => ({
+        Date: new Date(t.date).toLocaleDateString(),
+        Description: t.description || '',
+        Category: t.category,
+        Type: t.type.toUpperCase(),
+        Amount: t.type === 'expense' ? -parseFloat(t.amount) : parseFloat(t.amount),
+      }));
+
+      // Add Summary
+      excelData.push({});
+      excelData.push({ Description: 'SUMMARY', Category: 'PERIOD TOTALS' });
+      excelData.push({ Description: 'Total Income', Amount: totalIncome });
+      excelData.push({ Description: 'Total Expenses', Amount: -totalExpense });
+      excelData.push({ Description: 'Net Cash Flow', Amount: net });
+
+      const ws = utils.json_to_sheet(excelData);
+      
+      // Calculate row indices (Excel is 1-indexed, first row is headers)
+      const lastDataRow = rangeTransactions.length + 1;
+      const totalIncomeRow = lastDataRow + 3;
+      const totalExpenseRow = lastDataRow + 4;
+      const netFlowRow = lastDataRow + 5;
+
+      // Inject Formulas into Column E (Amount Column)
+      // Note: Column E is index 4
+      
+      // Total Income Formula: Sum all positive values in the Amount column
+      // We use a simpler approach here: since we already calculated the totals in JS for the initial view,
+      // but to make it dynamic, we use SUMIF on the Type column (Column D)
+      ws[`E${totalIncomeRow}`] = { 
+        f: `SUMIF(D2:D${lastDataRow},"INCOME",E2:E${lastDataRow})`,
+        t: 'n' 
+      };
+      
+      // Total Expense Formula: Sum all negative values (expenses)
+      ws[`E${totalExpenseRow}`] = { 
+        f: `SUMIF(D2:D${lastDataRow},"EXPENSE",E2:E${lastDataRow})`,
+        t: 'n' 
+      };
+      
+      // Net Cash Flow Formula: Simple sum of all amounts
+      ws[`E${netFlowRow}`] = { 
+        f: `SUM(E2:E${lastDataRow})`,
+        t: 'n' 
+      };
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 15 }, // Date
+        { wch: 30 }, // Description
+        { wch: 20 }, // Category
+        { wch: 10 }, // Type
+        { wch: 15 }, // Amount
+      ];
+
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, 'Transactions');
+      
+      writeFile(wb, `Expense Report ${dateFrom} to ${dateTo}.xlsx`);
+      toast.success('Dynamic Excel Report Exported!');
     } else {
       const doc = new jsPDF();
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(22);
-      doc.setTextColor(124, 58, 237);
-      doc.text('Expense Tracker Report', 14, 20);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Period: ${new Date(dateFrom).toLocaleDateString()} – ${new Date(dateTo).toLocaleDateString()}`, 14, 28);
-      doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 14, 34);
 
+      // Calculation of summary totals
+      const totalIncome = rangeTransactions
+        .filter((t) => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const totalExpense = rangeTransactions
+        .filter((t) => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const netBalance = totalIncome - totalExpense;
+
+      // Header Branding
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(38, 38, 38); // Dark neutral
+      doc.text('Financial Activity Report', 14, 20);
+
+      // Period & Generated Date
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(115, 115, 115); // Muted gray
+      doc.text(
+        `Range: ${new Date(dateFrom).toLocaleDateString()} to ${new Date(dateTo).toLocaleDateString()}`,
+        14,
+        28,
+      );
+      doc.text(
+        `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+        14,
+        34,
+      );
+
+      // Main Transactions Table
       const tableData = rangeTransactions.map((t) => [
         new Date(t.date).toLocaleDateString(),
         t.description || 'No description',
@@ -599,23 +759,65 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
       autoTable(doc, {
         head: [['Date', 'Description', 'Category', 'Type', 'Amount']],
         body: tableData,
-        startY: 40,
+        startY: 42,
         theme: 'striped',
-        styles: { font: 'helvetica', fontSize: 10, cellPadding: 6, lineColor: [230, 230, 230], lineWidth: 0.1 },
-        headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [250, 250, 252] },
-        columnStyles: { 4: { halign: 'right', fontStyle: 'bold' } },
-        didParseCell: function (data) {
-          if (data.section === 'body') {
-            const type = data.row.raw[3];
-            if (type === 'INCOME') data.cell.styles.textColor = [16, 185, 129];
-            else if (type === 'EXPENSE') data.cell.styles.textColor = [244, 63, 94];
-          }
+        styles: {
+          font: 'helvetica',
+          fontSize: 9,
+          cellPadding: 5,
+          lineColor: [245, 245, 245],
+          lineWidth: 0.1,
+          textColor: [64, 64, 64],
+        },
+        headStyles: {
+          fillColor: [38, 38, 38], // Professional Dark Gray
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        columnStyles: {
+          4: { halign: 'right', fontStyle: 'bold' },
         },
       });
 
-      doc.save(`FinAI_Report_${dateFrom}_to_${dateTo}.pdf`);
-      toast.success('PDF Exported!');
+      // Summary Block at the end
+      const finalY = doc.lastAutoTable.finalY + 15;
+
+      // Draw a subtle line separator
+      doc.setDrawColor(240, 240, 240);
+      doc.line(14, finalY - 5, 196, finalY - 5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(38, 38, 38);
+      doc.text('Summary of Period', 14, finalY);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(115, 115, 115);
+
+      doc.text('Total Income:', 14, finalY + 10);
+      doc.setTextColor(38, 38, 38);
+      doc.text(`+P${formatAmount(totalIncome)}`, 60, finalY + 10);
+
+      doc.setTextColor(115, 115, 115);
+      doc.text('Total Expenses:', 14, finalY + 18);
+      doc.setTextColor(38, 38, 38);
+      doc.text(`-P${formatAmount(totalExpense)}`, 60, finalY + 18);
+
+      // Net Total with a background highlight
+      doc.setFillColor(245, 245, 245);
+      doc.rect(14, finalY + 24, 80, 10, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.text('Net Cash Flow:', 18, finalY + 31);
+      doc.text(
+        `${netBalance >= 0 ? '+' : ''}P${formatAmount(netBalance)}`,
+        60,
+        finalY + 31,
+      );
+
+      doc.save(`Expense Report ${dateFrom} to ${dateTo}.pdf`);
+      toast.success('Professional Report Exported!');
     }
 
     setShowExportModal(false);
@@ -660,9 +862,16 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
             <div className='p-6 border-b border-neutral-100 dark:border-white/5 flex items-center justify-between'>
               <div>
                 <h3 className='font-bold text-lg'>
-                  Export {exportType === 'csv' ? 'CSV' : 'PDF'}
+                  Export{' '}
+                  {exportType === 'csv'
+                    ? 'CSV'
+                    : exportType === 'excel'
+                      ? 'Excel'
+                      : 'PDF'}
                 </h3>
-                <p className='text-xs text-neutral-500 mt-0.5'>Select the date range to include</p>
+                <p className='text-xs text-neutral-500 mt-0.5'>
+                  Select the date range to include
+                </p>
               </div>
               <button
                 onClick={() => setShowExportModal(false)}
@@ -676,27 +885,53 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
               {/* Quick range presets */}
               <div className='flex flex-wrap gap-2'>
                 {[
-                  { label: 'This Month', fn: () => {
-                    const now = new Date();
-                    setDateFrom(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`);
-                    setDateTo(new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().split('T')[0]);
-                  }},
-                  { label: 'Last Month', fn: () => {
-                    const now = new Date();
-                    const first = new Date(now.getFullYear(), now.getMonth()-1, 1);
-                    const last = new Date(now.getFullYear(), now.getMonth(), 0);
-                    setDateFrom(first.toISOString().split('T')[0]);
-                    setDateTo(last.toISOString().split('T')[0]);
-                  }},
-                  { label: 'This Year', fn: () => {
-                    const now = new Date();
-                    setDateFrom(`${now.getFullYear()}-01-01`);
-                    setDateTo(`${now.getFullYear()}-12-31`);
-                  }},
-                  { label: 'All Time', fn: () => {
-                    setDateFrom('2000-01-01');
-                    setDateTo(new Date().toISOString().split('T')[0]);
-                  }},
+                  {
+                    label: 'This Month',
+                    fn: () => {
+                      const now = new Date();
+                      setDateFrom(
+                        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+                      );
+                      setDateTo(
+                        formatDateLocal(
+                          new Date(now.getFullYear(), now.getMonth() + 1, 0),
+                        ),
+                      );
+                    },
+                  },
+                  {
+                    label: 'Last Month',
+                    fn: () => {
+                      const now = new Date();
+                      const first = new Date(
+                        now.getFullYear(),
+                        now.getMonth() - 1,
+                        1,
+                      );
+                      const last = new Date(
+                        now.getFullYear(),
+                        now.getMonth(),
+                        0,
+                      );
+                      setDateFrom(formatDateLocal(first));
+                      setDateTo(formatDateLocal(last));
+                    },
+                  },
+                  {
+                    label: 'This Year',
+                    fn: () => {
+                      const now = new Date();
+                      setDateFrom(`${now.getFullYear()}-01-01`);
+                      setDateTo(`${now.getFullYear()}-12-31`);
+                    },
+                  },
+                  {
+                    label: 'All Time',
+                    fn: () => {
+                      setDateFrom('2000-01-01');
+                      setDateTo(formatDateLocal(new Date()));
+                    },
+                  },
                 ].map(({ label, fn }) => (
                   <button
                     key={label}
@@ -709,7 +944,9 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
 
               <div className='grid grid-cols-2 gap-3'>
                 <div>
-                  <label className='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>From</label>
+                  <label className='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>
+                    From
+                  </label>
                   <input
                     type='date'
                     value={dateFrom}
@@ -718,7 +955,9 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
                   />
                 </div>
                 <div>
-                  <label className='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>To</label>
+                  <label className='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>
+                    To
+                  </label>
                   <input
                     type='date'
                     value={dateTo}
@@ -771,14 +1010,16 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
             />
           </div>
           <div className='flex gap-2'>
-            <input 
-              type="file" 
-              accept=".csv" 
-              className="hidden" 
+            <input
+              type='file'
+              accept='.csv'
+              className='hidden'
               ref={fileInputRef}
-              onChange={handleFileUpload} 
+              onChange={handleFileUpload}
             />
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 rounded-xl text-sm font-semibold hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-all shadow-sm">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className='flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 rounded-xl text-sm font-semibold hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-all shadow-sm'>
               <FiUpload /> Import CSV
             </button>
             <button
@@ -791,22 +1032,32 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
               className='flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 rounded-xl text-sm font-semibold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all'>
               <FiDownload /> PDF
             </button>
+            <button
+              onClick={handleExportExcel}
+              className='flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 rounded-xl text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all'>
+              <FiDownload /> Excel
+            </button>
           </div>
         </div>
 
         {/* AI Loading Modal Overlay for Import */}
         {isImporting && (
-          <div className="absolute inset-0 z-10 bg-white/80 dark:bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in rounded-b-3xl">
-            <div className="w-12 h-12 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mb-4 shadow-lg"></div>
-            <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">FinAI is Processing</h3>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6 text-center max-w-xs">Reading, standardizing, and categorizing raw bank rows...</p>
-            <div className="w-64 h-2 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden shadow-inner">
-              <div 
-                className="h-full bg-violet-600 transition-all duration-300 rounded-full" 
-                style={{ width: `${importProgress}%` }}
-              ></div>
+          <div className='absolute inset-0 z-10 bg-white/80 dark:bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in rounded-b-3xl'>
+            <div className='w-12 h-12 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mb-4 shadow-lg'></div>
+            <h3 className='text-xl font-bold text-neutral-900 dark:text-white mb-2'>
+              FinAI is Processing
+            </h3>
+            <p className='text-sm text-neutral-500 dark:text-neutral-400 mb-6 text-center max-w-xs'>
+              Reading, standardizing, and categorizing raw bank rows...
+            </p>
+            <div className='w-64 h-2 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden shadow-inner'>
+              <div
+                className='h-full bg-violet-600 transition-all duration-300 rounded-full'
+                style={{ width: `${importProgress}%` }}></div>
             </div>
-            <span className="text-xs font-mono font-bold mt-2 text-violet-600 dark:text-violet-400">{importProgress}%</span>
+            <span className='text-xs font-mono font-bold mt-2 text-violet-600 dark:text-violet-400'>
+              {importProgress}%
+            </span>
           </div>
         )}
 

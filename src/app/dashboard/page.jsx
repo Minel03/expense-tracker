@@ -77,9 +77,9 @@ const DashboardContent = () => {
     // Auto-Biller: check and fire background deductions first
     await processSubscriptions(currentUser.id);
 
-    const { data: transData } = await getTransactions(currentUser.id);
-    const { data: summData } = await getTransactionSummary(currentUser.id);
     const monthStr = new Date().toISOString().slice(0, 7);
+    const { data: transData } = await getTransactions(currentUser.id, monthStr);
+    const { data: summData } = await getTransactionSummary(currentUser.id, monthStr);
     const { data: budgetsData } = await getBudgets(currentUser.id, monthStr);
     const { data: subsData } = await getSubscriptions(currentUser.id);
 
@@ -102,6 +102,8 @@ const DashboardContent = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const monthLabel = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
   const expenseTransactions = transactions.filter((t) => t.type === 'expense');
   const expenseCategories = [
@@ -155,7 +157,7 @@ const DashboardContent = () => {
               </span>
             </h1>
             <p className='text-neutral-500 dark:text-neutral-400'>
-              Here's your financial overview for this month.
+              Financial summary for <span className="font-bold text-neutral-900 dark:text-white">{monthLabel}</span>
             </p>
           </div>
         </div>
@@ -185,7 +187,7 @@ const DashboardContent = () => {
               <FiTrendingUp className='w-32 h-32' />
             </div>
             <p className='text-emerald-700/80 dark:text-emerald-500/80 text-sm font-semibold mb-2 uppercase tracking-widest'>
-              Total Income
+              Income ({monthLabel.split(' ')[0]})
             </p>
             <h2 className='text-4xl font-mono font-black text-emerald-600 dark:text-emerald-400'>
               +₱
@@ -201,7 +203,7 @@ const DashboardContent = () => {
               <FiTrendingDown className='w-32 h-32' />
             </div>
             <p className='text-rose-700/80 dark:text-rose-500/80 text-sm font-semibold mb-2 uppercase tracking-widest'>
-              Total Expenses
+              Expenses ({monthLabel.split(' ')[0]})
             </p>
             <h2 className='text-4xl font-mono font-black text-rose-600 dark:text-rose-400'>
               -₱

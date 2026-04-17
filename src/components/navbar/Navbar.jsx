@@ -63,11 +63,11 @@ const Navbar = () => {
             href='/dashboard'
             className='flex items-center gap-2 group'>
             <img
-              src="/icon.png"
-              alt="FIMS Logo"
+              src='/icon.png'
+              alt='FIMS Logo'
               className='w-10 h-10 rounded-xl transform group-hover:rotate-12 transition-transform object-cover shadow-lg shadow-violet-500/20'
             />
-            <span className='text-xl font-bold bg-gradient-to-r from-violet-600 to-neutral-800 dark:from-white dark:to-neutral-500 bg-clip-text text-transparent hidden sm:block'>
+            <span className='text-xl font-bold bg-linear-to-r from-violet-600 to-neutral-800 dark:from-white dark:to-neutral-500 bg-clip-text text-transparent hidden sm:block'>
               FIMS
             </span>
           </Link>
