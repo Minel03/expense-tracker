@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiMessageSquare, FiX, FiSend, FiLoader } from 'react-icons/fi';
-import { addTransaction, updateTransaction, deleteTransaction, addSubscription, processSubscriptions } from '@/lib/transactions';
+import { addTransaction, updateTransaction, deleteTransaction, addSubscription, deleteSubscription, processSubscriptions } from '@/lib/transactions';
 import { toast } from 'react-hot-toast';
 
-export default function AIChat({ transactions, summary, userName, userId, onUpdate }) {
+export default function AIChat({ transactions, subscriptions, summary, userName, userId, onUpdate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'assistant', content: `Hi ${userName}! Ask me anything about your finances. For example, "How much did I spend on food this month?"` }
@@ -37,6 +37,7 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
           message: userMessage.content,
           history: messages,
           transactions, 
+          subscriptions,
           summary 
         }),
       });
@@ -47,6 +48,9 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
       
       if (data.tool_calls) {
         let actionMessage = "I have processed your request!";
+        let needsSubscriptionProcess = false;
+        let needsUIUpdate = false;
+
         for (const call of data.tool_calls) {
           const args = JSON.parse(call.function.arguments);
           
@@ -58,7 +62,7 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
             } else {
               toast.success("Transaction added via AI!");
               actionMessage = `I've added the ${args.type} of ₱${parseFloat(args.amount).toLocaleString()} for ${args.category}.`;
-              if (onUpdate) onUpdate();
+              needsUIUpdate = true;
             }
           } 
           else if (call.function.name === 'modify_transaction') {
@@ -70,7 +74,7 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
             } else {
               toast.success("Transaction updated via AI!");
               actionMessage = `I've successfully updated the transaction!`;
-              if (onUpdate) onUpdate();
+              needsUIUpdate = true;
             }
           }
           else if (call.function.name === 'delete_transaction') {
@@ -81,7 +85,7 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
             } else {
               toast.success("Transaction deleted via AI!");
               actionMessage = `I've successfully deleted the transaction!`;
-              if (onUpdate) onUpdate();
+              needsUIUpdate = true;
             }
           }
           else if (call.function.name === 'add_subscription') {
@@ -90,13 +94,29 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
               toast.error("Failed to add subscription via AI.");
               actionMessage = "Sorry, I couldn't create that subscription.";
             } else {
-              await processSubscriptions(userId);
+              needsSubscriptionProcess = true;
               toast.success("Subscription added via AI!");
               actionMessage = `I've added your ${args.name} subscription! It's set for ₱${parseFloat(args.amount).toLocaleString()} every month (day ${args.billing_day}).`;
-              if (onUpdate) onUpdate();
+              needsUIUpdate = true;
+            }
+          }
+          else if (call.function.name === 'delete_subscription') {
+            const { error } = await deleteSubscription(args.id);
+            if (error) {
+              toast.error("Failed to remove subscription via AI.");
+              actionMessage = "Sorry, I couldn't delete that subscription.";
+            } else {
+              toast.success("Subscription removed via AI!");
+              actionMessage = `I've successfully removed the subscription!`;
+              needsUIUpdate = true;
             }
           }
         }
+
+        // Run side-effects once after all tools are finished
+        if (needsSubscriptionProcess) await processSubscriptions(userId);
+        if (needsUIUpdate && onUpdate) onUpdate();
+
         setMessages(prev => [...prev, { role: 'assistant', content: actionMessage }]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);

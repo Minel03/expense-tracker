@@ -373,6 +373,7 @@ const DashboardContent = () => {
       {/* FinAI Chat Widget */}
       <AIChat
         transactions={transactions}
+        subscriptions={subscriptions}
         summary={summary}
         userName={user?.user_metadata?.full_name?.split(' ')[0] || 'User'}
         userId={user?.id}

@@ -5,7 +5,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req) {
   try {
-    const { message, history, transactions, summary } = await req.json();
+    const { message, history, transactions, subscriptions, summary } = await req.json();
 
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
@@ -26,6 +26,9 @@ Balance: ₱${summary?.balance || 0}
 RECENT TRANSACTIONS (Top 20):
 ${transactions?.slice(0, 20).map(t => `- ID: ${t.id} | Date: ${t.date} | Desc: ${t.description || 'No desc'} (${t.category}) | Amt: ${t.type === 'income' ? '+' : '-'}₱${t.amount}`).join('\n') || 'No transactions found.'}
 
+CURRENT SUBSCRIPTIONS:
+${subscriptions?.map(s => `- ID: ${s.id} | Name: ${s.name} | Amt: ₱${s.amount} | Billing Day: ${s.billing_day} (${s.billing_cycle || 'monthly'})`).join('\n') || 'No active subscriptions.'}
+
 INSTRUCTIONS:
 1. Answer the user's questions strictly based on their financial data provided above.
 2. If they ask about spending in a specific category, calculate it from the transactions provided.
@@ -33,10 +36,12 @@ INSTRUCTIONS:
 4. Do not provide generic advice unless asked. Focus on their actual data.
 5. If the user asks something unrelated to finance or the app, politely steer them back.
 6. Format amounts with the ₱ symbol and include comma separators for thousands (e.g. ₱50,000 instead of ₱50000).
-7. YOU HAVE TOOLS: You can 'add_transaction', 'modify_transaction', or 'add_subscription' if the user asks. If the user wants to add a recurring expense (like Netflix), use 'add_subscription'.
-8. CRITICAL: If the user asks to add a transaction but does NOT specify the amount (e.g. "I bought a PS5"), DO NOT trigger the tool. Reply back asking them how much it cost. 
-9. For subscriptions, if the user doesn't specify a billing day, assume today's day (${new Date().getDate()}). Billing cycle defaults to 'monthly'.
-10. For current date, use '${new Date().toISOString().split('T')[0]}'. Always format numbers in your spoken response with commas.`;
+7. YOU HAVE TOOLS: You can 'add_transaction', 'modify_transaction', 'add_subscription', or 'delete_subscription' if the user asks. 
+8. REMOVING SUBSCRIPTIONS: If a user asks to remove a subscription, use 'delete_subscription' with its ID. 
+9. OPTIONAL PURGE: If and ONLY IF the user explicitly asks to remove a subscription "and its transactions" or "wipe its history", you must also call 'delete_transaction' for every transaction matching that subscription's name you see in the recent list.
+10. CRITICAL: If the user asks to add a transaction but does NOT specify the amount (e.g. "I bought a PS5"), DO NOT trigger the tool. Reply back asking them how much it cost. 
+11. For subscriptions, if no billing day is specified, assume today (${new Date().getDate()}). Billing cycle defaults to 'monthly'.
+12. For current date, use '${new Date().toISOString().split('T')[0]}'. Always format numbers in your spoken response with commas.`;
 
     const formattedHistory = history.filter(h => h.role !== 'system').map(h => ({
       role: h.role,
@@ -120,6 +125,20 @@ INSTRUCTIONS:
                  category: { type: "string", description: "Category like Entertainment, Utilities, Rent, Software, etc." }
               },
               required: ["name", "amount", "billing_day", "category"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "delete_subscription",
+            description: "Completely remove a smart/automated subscription. Does NOT delete past transactions unless explicitly requested by user (you'd need to call delete_transaction separately for those).",
+            parameters: {
+              type: "object",
+              properties: {
+                 id: { type: "string", description: "The ID of the subscription to delete" }
+              },
+              required: ["id"]
             }
           }
         }
