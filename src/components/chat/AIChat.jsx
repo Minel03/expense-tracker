@@ -96,7 +96,8 @@ export default function AIChat({ transactions, subscriptions, summary, userName,
             } else {
               needsSubscriptionProcess = true;
               toast.success("Subscription added via AI!");
-              actionMessage = `I've added your ${args.name} subscription! It's set for ₱${parseFloat(args.amount).toLocaleString()} every month (day ${args.billing_day}).`;
+              const cycleText = args.billing_cycle === 'yearly' ? `every year in ${new Date(2024, (args.billing_month || 1) - 1).toLocaleString('default', { month: 'long' })}` : 'every month';
+              actionMessage = `I've added your ${args.name} subscription! It's set for ₱${parseFloat(args.amount).toLocaleString()} ${cycleText} (day ${args.billing_day}).`;
               needsUIUpdate = true;
             }
           }

@@ -117,8 +117,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     name TEXT NOT NULL,                        -- e.g. "Netflix", "Spotify"
     amount DECIMAL(12, 2) NOT NULL,
     billing_day INTEGER CHECK (billing_day BETWEEN 1 AND 31) NOT NULL,
+    billing_cycle TEXT NOT NULL DEFAULT 'monthly', -- 'monthly' or 'yearly'
+    billing_month INTEGER,                     -- 1-12, required for 'yearly'
     category TEXT NOT NULL DEFAULT 'Entertainment',
-    last_processed_month VARCHAR(7) DEFAULT '',-- e.g. '2026-04', prevents double-billing
+    last_processed_month VARCHAR(7) DEFAULT '',-- e.g. '2026-04'
+    last_processed_year INTEGER,               -- e.g. 2026, prevents double-billing yearly
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
