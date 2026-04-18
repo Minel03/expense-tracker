@@ -23,8 +23,8 @@ Income: ₱${summary?.income || 0}
 Expenses: ₱${summary?.expense || 0}
 Balance: ₱${summary?.balance || 0}
 
-RECENT TRANSACTIONS (Top 20):
-${transactions?.slice(0, 20)?.map(t => `- ID: ${t.id} | Date: ${t.date} | Desc: ${t.description || 'No desc'} (${t.category}) | Amt: ${t.type === 'income' ? '+' : '-'}₱${t.amount}`).join('\n') || 'No transactions found.'}
+RECENT TRANSACTIONS (Top 12):
+${transactions?.slice(0, 12)?.map(t => `- ID: ${t.id} | Date: ${t.date} | Desc: ${t.description || 'No desc'} (${t.category}) | Amt: ${t.type === 'income' ? '+' : '-'}₱${t.amount}`).join('\n') || 'No transactions found.'}
 
 CURRENT SUBSCRIPTIONS:
 ${subscriptions?.map(s => `- ID: ${s.id} | Name: ${s.name} | Amt: ₱${s.amount} | Billing Day: ${s.billing_day} (${s.billing_cycle || 'monthly'})`).join('\n') || 'No active subscriptions.'}
@@ -54,7 +54,7 @@ INSTRUCTIONS:
         ...formattedHistory,
         { role: 'user', content: message }
       ],
-      model: 'llama-3.3-70b-versatile', // Use a valid Groq model
+      model: 'llama-3.1-8b-instant', // Switched to a lighter, higher-limit model
       temperature: 0.5,
       max_tokens: 500,
       tools: [
@@ -159,7 +159,7 @@ INSTRUCTIONS:
   } catch (error) {
     console.error('Chat API Error:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }
