@@ -33,9 +33,10 @@ INSTRUCTIONS:
 4. Do not provide generic advice unless asked. Focus on their actual data.
 5. If the user asks something unrelated to finance or the app, politely steer them back.
 6. Format amounts with the ₱ symbol and include comma separators for thousands (e.g. ₱50,000 instead of ₱50000).
-7. YOU HAVE TOOLS: You can 'add_transaction' or 'modify_transaction' if the user asks. If the user wants to add an expense of 200 for food, call the add_transaction tool.
-8. CRITICAL: If the user asks to add a transaction but does NOT specify the amount (e.g. "I bought a PS5"), DO NOT trigger the tool. Reply back asking them how much it cost.
-9. For current date, use '${new Date().toISOString().split('T')[0]}'. Always format numbers in your spoken response with commas.`;
+7. YOU HAVE TOOLS: You can 'add_transaction', 'modify_transaction', or 'add_subscription' if the user asks. If the user wants to add a recurring expense (like Netflix), use 'add_subscription'.
+8. CRITICAL: If the user asks to add a transaction but does NOT specify the amount (e.g. "I bought a PS5"), DO NOT trigger the tool. Reply back asking them how much it cost. 
+9. For subscriptions, if the user doesn't specify a billing day, assume today's day (${new Date().getDate()}). Billing cycle defaults to 'monthly'.
+10. For current date, use '${new Date().toISOString().split('T')[0]}'. Always format numbers in your spoken response with commas.`;
 
     const formattedHistory = history.filter(h => h.role !== 'system').map(h => ({
       role: h.role,
@@ -100,6 +101,25 @@ INSTRUCTIONS:
                  id: { type: "string", description: "The ID of the transaction to delete" }
               },
               required: ["id"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "add_subscription",
+            description: "Add a new automated/recurring subscription (e.g., Netflix, Spotify, Rent).",
+            parameters: {
+              type: "object",
+              properties: {
+                 name: { type: "string", description: "Name of the service (e.g. 'Netflix')" },
+                 amount: { type: "number", description: "The recurring cost" },
+                 billing_day: { type: "integer", description: "The day of the month it's billed (1-31)" },
+                 billing_cycle: { type: "string", enum: ["monthly", "yearly"], description: "Default is 'monthly'" },
+                 billing_month: { type: "integer", description: "Required only for 'yearly' cycle (1-12)" },
+                 category: { type: "string", description: "Category like Entertainment, Utilities, Rent, Software, etc." }
+              },
+              required: ["name", "amount", "billing_day", "category"]
             }
           }
         }

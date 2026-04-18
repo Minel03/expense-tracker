@@ -170,6 +170,31 @@ export const getSubscriptions = async (userId) => {
   return { data, error };
 };
 
+export const addSubscription = async (subscription) => {
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .insert([subscription])
+    .select();
+  return { data, error };
+};
+
+export const updateSubscription = async (id, updates) => {
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update(updates)
+    .eq('id', id)
+    .select();
+  return { data, error };
+};
+
+export const deleteSubscription = async (id) => {
+  const { error } = await supabase
+    .from('subscriptions')
+    .delete()
+    .eq('id', id);
+  return { error };
+};
+
 export const processSubscriptions = async (userId) => {
   // 1. Fetch active subs
   const { data: subs, error: subError } = await getSubscriptions(userId);

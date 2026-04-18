@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiMessageSquare, FiX, FiSend, FiLoader } from 'react-icons/fi';
-import { addTransaction, updateTransaction, deleteTransaction } from '@/lib/transactions';
+import { addTransaction, updateTransaction, deleteTransaction, addSubscription, processSubscriptions } from '@/lib/transactions';
 import { toast } from 'react-hot-toast';
 
 export default function AIChat({ transactions, summary, userName, userId, onUpdate }) {
@@ -81,6 +81,18 @@ export default function AIChat({ transactions, summary, userName, userId, onUpda
             } else {
               toast.success("Transaction deleted via AI!");
               actionMessage = `I've successfully deleted the transaction!`;
+              if (onUpdate) onUpdate();
+            }
+          }
+          else if (call.function.name === 'add_subscription') {
+            const { error } = await addSubscription({ ...args, user_id: userId });
+            if (error) {
+              toast.error("Failed to add subscription via AI.");
+              actionMessage = "Sorry, I couldn't create that subscription.";
+            } else {
+              await processSubscriptions(userId);
+              toast.success("Subscription added via AI!");
+              actionMessage = `I've added your ${args.name} subscription! It's set for ₱${parseFloat(args.amount).toLocaleString()} every month (day ${args.billing_day}).`;
               if (onUpdate) onUpdate();
             }
           }
