@@ -86,8 +86,6 @@ const DashboardContent = () => {
       getTransactionSummary(currentUser.id, monthStr),
       getBudgets(currentUser.id, monthStr),
       getSubscriptions(currentUser.id),
-      // Background process deductions without blocking the UI
-      processSubscriptions(currentUser.id),
     ]);
 
     setTransactions(transRes.data || []);
@@ -98,7 +96,11 @@ const DashboardContent = () => {
     // 2. Immediate Render: Show the dashboard as soon as data is ready
     setLoading(false);
 
-    // 3. Deferred AI Analysis: Let the AI work in the background!
+    // 3. Sequential Processing: Handle deductions after data is initially displayed
+    // This prevents race conditions with getTransactions
+    await processSubscriptions(currentUser.id);
+
+    // 4. Deferred AI Analysis: Let the AI work in the background!
     if (transRes.data && transRes.data.length > 0) {
       const aiResponse = await generateFinancialInsights(
         transRes.data,

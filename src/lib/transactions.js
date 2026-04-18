@@ -206,6 +206,21 @@ export const processSubscriptions = async (userId) => {
   const currentMonthStr = `${currentYear}-${String(currentMonthNum).padStart(2, '0')}`;
   const currentDay = today.getDate();
 
+  // 2. NEW: Fetch existing recurring transactions for this month to prevent duplicates
+  const startOfMonth = `${currentMonthStr}-01`;
+  const lastDay = new Date(currentYear, currentMonthNum, 0).getDate();
+  const endOfMonth = `${currentMonthStr}-${String(lastDay).padStart(2, '0')}`;
+
+  const { data: existingTransactions } = await supabase
+    .from('transactions')
+    .select('description, amount')
+    .eq('user_id', userId)
+    .eq('is_recurring', true)
+    .gte('date', startOfMonth)
+    .lte('date', endOfMonth);
+
+  const processedNames = new Set(existingTransactions?.map(t => t.description) || []);
+
   const transactionsToInsert = [];
   const subsToUpdate = [];
 
@@ -213,17 +228,20 @@ export const processSubscriptions = async (userId) => {
     const cycle = sub.billing_cycle || 'monthly';
     let shouldProcess = false;
 
+    // Check if this specific sub name is already in the monthly transactions
+    const wasAlreadyCharged = processedNames.has(sub.name);
+
     if (cycle === 'monthly') {
-      // Monthly logic: check if this month is processed
-      if (sub.last_processed_month !== currentMonthStr && currentDay >= sub.billing_day) {
+      // Monthly logic: check if this month is processed AND not already in transactions
+      if (!wasAlreadyCharged && sub.last_processed_month !== currentMonthStr && currentDay >= sub.billing_day) {
         shouldProcess = true;
       }
     } else if (cycle === 'yearly') {
-      // Yearly logic: check if this year is processed AND we are at/past the month+day
+      // Yearly logic: check if this year is processed AND we are at/past the month+day AND not already in transactions
       const hasProcessedThisYear = sub.last_processed_year === currentYear;
       const subMonth = sub.billing_month || 1;
       
-      if (!hasProcessedThisYear) {
+      if (!hasProcessedThisYear && !wasAlreadyCharged) {
         const isPastMonth = currentMonthNum > subMonth;
         const isCorrectMonthAndDay = currentMonthNum === subMonth && currentDay >= sub.billing_day;
         
@@ -231,6 +249,17 @@ export const processSubscriptions = async (userId) => {
           shouldProcess = true;
         }
       }
+    }
+
+    // If it WAS already charged but metadata is behind, we still want to update metadata to stop future checks
+    if (wasAlreadyCharged && sub.last_processed_month !== currentMonthStr) {
+      subsToUpdate.push({
+        id: sub.id,
+        updates: {
+          last_processed_month: currentMonthStr,
+          last_processed_year: currentYear
+        }
+      });
     }
 
     if (shouldProcess) {
@@ -257,14 +286,19 @@ export const processSubscriptions = async (userId) => {
 
   if (transactionsToInsert.length > 0) {
     // Inject transactions
-    await bulkAddTransactions(transactionsToInsert);
+    const { error: insError } = await bulkAddTransactions(transactionsToInsert);
+    if (insError) console.error('Error inserting sub transactions:', insError);
+  }
 
+  if (subsToUpdate.length > 0) {
     // Patch subscriptions
     for (const subUpdate of subsToUpdate) {
-      await supabase
+      const { error: updError } = await supabase
         .from('subscriptions')
         .update(subUpdate.updates)
         .eq('id', subUpdate.id);
+      
+      if (updError) console.error(`Error updating sub ${subUpdate.id}:`, updError);
     }
   }
 };
