@@ -28,7 +28,7 @@ import {
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { utils, writeFile } from 'xlsx';
+import { utils, write, writeFile } from 'xlsx';
 
 const categories = [
   'Salary',
@@ -712,7 +712,18 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
       const wb = utils.book_new();
       utils.book_append_sheet(wb, ws, 'Transactions');
       
-      writeFile(wb, `Expense Report ${dateFrom} to ${dateTo}.xlsx`);
+      // Use manual Blob approach for better mobile/iOS support
+      const wbout = write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Expense Report ${dateFrom} to ${dateTo}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
       toast.success('Dynamic Excel Report Exported!');
     } else {
       const doc = new jsPDF();
@@ -1009,7 +1020,7 @@ const ExpenseTable = ({ transactions, onUpdate, userId }) => {
               className='w-full pl-10 pr-4 py-2 bg-neutral-50 dark:bg-black/20 border border-neutral-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all text-sm text-neutral-900 dark:text-white'
             />
           </div>
-          <div className='flex gap-2'>
+          <div className='flex flex-wrap gap-2'>
             <input
               type='file'
               accept='.csv'
