@@ -24,7 +24,7 @@ Expenses: ₱${summary?.expense || 0}
 Balance: ₱${summary?.balance || 0}
 
 RECENT TRANSACTIONS (Top 20):
-${transactions?.slice(0, 20).map(t => `- ID: ${t.id} | Date: ${t.date} | Desc: ${t.description || 'No desc'} (${t.category}) | Amt: ${t.type === 'income' ? '+' : '-'}₱${t.amount}`).join('\n') || 'No transactions found.'}
+${transactions?.slice(0, 20)?.map(t => `- ID: ${t.id} | Date: ${t.date} | Desc: ${t.description || 'No desc'} (${t.category}) | Amt: ${t.type === 'income' ? '+' : '-'}₱${t.amount}`).join('\n') || 'No transactions found.'}
 
 CURRENT SUBSCRIPTIONS:
 ${subscriptions?.map(s => `- ID: ${s.id} | Name: ${s.name} | Amt: ₱${s.amount} | Billing Day: ${s.billing_day} (${s.billing_cycle || 'monthly'})`).join('\n') || 'No active subscriptions.'}
