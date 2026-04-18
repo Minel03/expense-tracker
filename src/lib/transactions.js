@@ -237,15 +237,14 @@ export const processSubscriptions = async (userId) => {
         shouldProcess = true;
       }
     } else if (cycle === 'yearly') {
-      // Yearly logic: check if this year is processed AND we are at/past the month+day AND not already in transactions
+      // Yearly logic: ONLY process if THIS is the billing month
       const hasProcessedThisYear = sub.last_processed_year === currentYear;
       const subMonth = sub.billing_month || 1;
       
       if (!hasProcessedThisYear && !wasAlreadyCharged) {
-        const isPastMonth = currentMonthNum > subMonth;
         const isCorrectMonthAndDay = currentMonthNum === subMonth && currentDay >= sub.billing_day;
         
-        if (isPastMonth || isCorrectMonthAndDay) {
+        if (isCorrectMonthAndDay) {
           shouldProcess = true;
         }
       }

@@ -68,7 +68,7 @@ const SubscriptionManager = ({ subscriptions, onUpdate, userId }) => {
       
       let wasDeducted = false;
       if (billingCycle === 'monthly' && currentDay >= day) wasDeducted = true;
-      if (billingCycle === 'yearly' && (currentMonth > billingMonth || (currentMonth === billingMonth && currentDay >= day))) wasDeducted = true;
+      if (billingCycle === 'yearly' && (currentMonth === billingMonth && currentDay >= day)) wasDeducted = true;
 
       if (wasDeducted) {
         toast.success(`✅ "${name}" activated & deducted!`);
